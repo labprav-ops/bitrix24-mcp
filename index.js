@@ -2,7 +2,10 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { createRequire } from "module";
 
+const require = createRequire(import.meta.url);
+const { checkAndCall } = require("./guard.cjs");
 // URL входящего вебхука из Битрикс24, например:
 // https://your-portal.bitrix24.ru/rest/1/xxxxxxxxxxxxxxxx/
 const BITRIX_WEBHOOK_URL = process.env.BITRIX_WEBHOOK_URL;
