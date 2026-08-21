@@ -18,6 +18,12 @@ const { checkAndCall } = require("./guard.cjs");
  *   → Claude сотрудников
  *   → ЛП Ассистент
  *   → guard.cjs
+ *
+ * Секрет можно передавать двумя способами:
+ *   заголовком  X-MCP-Secret: <секрет>
+ *   или в адресе  ?key=<секрет>
+ * Второй способ нужен потому, что коннектор Claude
+ * не умеет отправлять произвольные заголовки.
  */
 
 // Вебхук ЛП Ассистента.
@@ -28,7 +34,6 @@ const BITRIX_WEBHOOK_URL = process.env.BITRIX_WEBHOOK_URL;
 const BITRIX_ADMIN_WEBHOOK_URL = process.env.BITRIX_ADMIN_WEBHOOK_URL;
 
 // Существующий секрет твоего личного MCP.
-// Оставляем прежнее имя, чтобы не ломать текущее подключение.
 const MCP_SHARED_SECRET = process.env.MCP_SHARED_SECRET;
 
 // Отдельный секрет для MCP сотрудников.
@@ -445,6 +450,18 @@ const app = express();
 app.use(express.json());
 
 /**
+ * Секрет: сначала смотрим заголовок, потом адрес.
+ * Коннектор Claude отправляет его только через адрес: ?key=...
+ */
+function getSecret(req) {
+  return (
+    req.header("X-MCP-Secret") ||
+    req.query.key ||
+    ""
+  );
+}
+
+/**
  * Общий обработчик MCP-запроса.
  */
 async function handleMcpRequest(
@@ -485,16 +502,14 @@ async function handleMcpRequest(
  * ТВОЙ ЛИЧНЫЙ CLAUDE
  * ==================================================
  *
- * Старый адрес сохраняется:
- * POST /mcp
+ * POST /mcp?key=MCP_SHARED_SECRET
  *
  * Использует твой полный админский вебхук.
  */
 app.post("/mcp", async (req, res) => {
   if (
     MCP_SHARED_SECRET &&
-    req.header("X-MCP-Secret") !==
-      MCP_SHARED_SECRET
+    getSecret(req) !== MCP_SHARED_SECRET
   ) {
     res.status(401).json({
       error: "unauthorized",
@@ -527,8 +542,7 @@ app.post("/mcp", async (req, res) => {
  * CLAUDE СОТРУДНИКОВ
  * ==================================================
  *
- * Новый адрес:
- * POST /mcp-staff
+ * POST /mcp-staff?key=MCP_STAFF_SHARED_SECRET
  *
  * Использует:
  * ЛП Ассистент → guard.cjs → Битрикс
@@ -549,8 +563,7 @@ app.post("/mcp-staff", async (req, res) => {
   }
 
   if (
-    req.header("X-MCP-Secret") !==
-    MCP_STAFF_SHARED_SECRET
+    getSecret(req) !== MCP_STAFF_SHARED_SECRET
   ) {
     res.status(401).json({
       error: "unauthorized",
@@ -587,6 +600,8 @@ app.get("/health", (_req, res) => {
     adminMcp: "/mcp",
     staffMcp: "/mcp-staff",
     guard: "loaded",
+    adminSecret: MCP_SHARED_SECRET ? "set" : "not set",
+    staffSecret: MCP_STAFF_SHARED_SECRET ? "set" : "not set",
   });
 });
 
