@@ -1,9 +1,19 @@
 /**
  * guard.js — защитный слой между Claude и Битрикс24
- * Лаборатория правосудия, август 2026
+ * Лаборатория правосудия, версия 2, 23 августа 2026
  *
  * Правило: суммы можно только увеличивать, удалять нельзя,
- * факт оплаты откатить нельзя, ответственного менять нельзя.
+ * факт оплаты откатить нельзя.
+ *
+ * ОТВЕТСТВЕННЫЙ переносится свободно, как обычное поле:
+ *   crm.deal.update    {id, fields: {ASSIGNED_BY_ID: 6809}}
+ *   crm.lead.update    {id, fields: {ASSIGNED_BY_ID: 6809}}
+ *   crm.contact.update {id, fields: {ASSIGNED_BY_ID: 6809}}
+ *   crm.item.update    {entityTypeId: 31, id, fields: {assignedById: 6809}}
+ *
+ * Ни кодов, ни подтверждений. Сервер только запоминает, кто был раньше:
+ *   lp.assign.log      {limit}      — что переносили за последнее время
+ *   lp.assign.rollback {changeId}   — вернуть как было, семь суток
  *
  * Подключение:
  *   const { checkAndCall } = require('./guard');
@@ -35,6 +45,13 @@ const READ_METHODS = new Set([
   'crm.deal.get', 'crm.deal.list', 'crm.deal.fields',
   'crm.item.get', 'crm.item.list', 'crm.item.fields',
   'crm.contact.get', 'crm.contact.list',
+  'crm.lead.get', 'crm.lead.list',
+  'crm.timeline.comment.list',          /* кто работал по карточке */
+  'crm.deal.userfield.list',            /* какие поля есть у сделки */
+  'tasks.task.list', 'tasks.task.get',  /* задачи по сделке и по сотруднику */
+  'user.search',                        /* найти сотрудника по имени */
+  'crm.dealcategory.list', 'crm.dealcategory.stage.list',
+  'crm.status.list',
   'crm.company.get', 'crm.company.list',
   'crm.activity.list', 'crm.timeline.comment.list',
   'crm.dealcategory.list', 'crm.category.list', 'crm.status.list',
@@ -50,21 +67,32 @@ const WRITE_METHODS = new Set([
   'crm.item.update',
   'crm.contact.add',
   'crm.contact.update',
+  'crm.lead.update',
+  'crm.timeline.comment.add',           /* оставить след в карточке */
 ]);
 
 /* Разрешённые к изменению поля */
 const ALLOWED_FIELDS = {
-  'crm.deal.update':    ['STAGE_ID', 'COMMENTS', 'CLOSEDATE', 'OPPORTUNITY'],
-  'crm.item.update':    ['opportunity', 'stageId'],
-  'crm.contact.update': ['NAME', 'LAST_NAME', 'SECOND_NAME', 'PHONE', 'EMAIL', 'COMMENTS'],
+  'crm.deal.update':    ['STAGE_ID', 'COMMENTS', 'CLOSEDATE', 'OPPORTUNITY', 'ASSIGNED_BY_ID'],
+  'crm.item.update':    ['opportunity', 'stageId', 'assignedById'],
+  'crm.contact.update': ['NAME', 'LAST_NAME', 'SECOND_NAME', 'PHONE', 'EMAIL', 'COMMENTS', 'ASSIGNED_BY_ID'],
+  'crm.lead.update':    ['STATUS_ID', 'COMMENTS', 'TITLE', 'ASSIGNED_BY_ID'],
+  'crm.timeline.comment.add': ['ENTITY_ID', 'ENTITY_TYPE', 'COMMENT', 'AUTHOR_ID'],
 };
 
 /* Поля, которые нельзя менять никогда — даже если попали в разрешённые */
 const FORBIDDEN_FIELDS = new Set([
-  'ASSIGNED_BY_ID', 'assignedById',   // ответственный влияет на зарплату
   'CREATED_BY_ID', 'createdBy',
   'CATEGORY_ID', 'categoryId',        // перенос между воронками
 ]);
+
+/* Где у какой сущности лежит ответственный */
+const OWNER_FIELD = {
+  'crm.deal.update':    'ASSIGNED_BY_ID',
+  'crm.lead.update':    'ASSIGNED_BY_ID',
+  'crm.contact.update': 'ASSIGNED_BY_ID',
+  'crm.item.update':    'assignedById',
+};
 
 /* ─────────────── Счётчики лимитов ─────────────── */
 
@@ -173,9 +201,105 @@ async function checkDealStage(dealId, newStage) {
   return deal;
 }
 
+/* ─────────────── Память о переносах ─────────────── */
+
+/**
+ * Ответственный переносится свободно. Сервер не спрашивает разрешения,
+ * он только запоминает, кто был раньше, — чтобы можно было вернуть.
+ */
+
+const assignHistory = [];
+const ASSIGN_HISTORY_LIMIT = 500;
+const ROLLBACK_DAYS = 7;
+
+/* Как вернуть ответственного каждой сущности */
+const OWNER_WRITE = {
+  'crm.deal.update':    (id, uid) => bitrix('crm.deal.update', { id, fields: { ASSIGNED_BY_ID: uid } }),
+  'crm.lead.update':    (id, uid) => bitrix('crm.lead.update', { id, fields: { ASSIGNED_BY_ID: uid } }),
+  'crm.contact.update': (id, uid) => bitrix('crm.contact.update', { id, fields: { ASSIGNED_BY_ID: uid } }),
+  'crm.item.update':    (id, uid) =>
+    bitrix('crm.item.update', { entityTypeId: INVOICE_ENTITY, id, fields: { assignedById: uid } }),
+};
+
+const ENTITY_LABEL = {
+  'crm.deal.update': 'сделка',
+  'crm.lead.update': 'лид',
+  'crm.contact.update': 'контакт',
+  'crm.item.update': 'счёт',
+};
+
+async function userLabel(id) {
+  if (!id) return 'никто';
+  try {
+    const u = await bitrix('user.get', { ID: id });
+    const p = Array.isArray(u) ? u[0] : u;
+    if (!p) return `#${id}`;
+    return [p.LAST_NAME, p.NAME].filter(Boolean).join(' ') || `#${id}`;
+  } catch (e) {
+    return `#${id}`;
+  }
+}
+
+/** Запомнить перенос. Вызывается после успешной записи. */
+async function rememberAssign(method, id, fromId, toId, title) {
+  const rec = {
+    changeId: `${id}-${Date.now()}`,
+    method, id,
+    label: ENTITY_LABEL[method] || 'запись',
+    title: title || `${ENTITY_LABEL[method] || 'запись'} ${id}`,
+    fromId, toId,
+    fromName: await userLabel(fromId),
+    toName: await userLabel(toId),
+    doneAt: Date.now(),
+  };
+  assignHistory.push(rec);
+  if (assignHistory.length > ASSIGN_HISTORY_LIMIT) assignHistory.shift();
+  log({ method: 'assign', verdict: 'MOVED', changeId: rec.changeId,
+        id, from: fromId, to: toId, title: rec.title });
+  return rec;
+}
+
+/** Вернуть ответственного как было */
+async function assignRollback(params, userId) {
+  const changeId = String(params.changeId || '').trim();
+  const rec = assignHistory.find(h => h.changeId === changeId);
+
+  if (!rec) throw new Error(`Перенос ${changeId} не найден. Список последних — lp.assign.log`);
+  if (rec.rolledBack) throw new Error('Этот перенос уже отменён');
+  if (Date.now() - rec.doneAt > ROLLBACK_DAYS * 86400000) {
+    throw new Error(`Прошло больше ${ROLLBACK_DAYS} суток — верните ответственного обычным способом`);
+  }
+
+  await OWNER_WRITE[rec.method](rec.id, rec.fromId);
+  rec.rolledBack = true;
+  log({ userId, method: 'lp.assign.rollback', verdict: 'DONE', changeId });
+
+  return { status: 'возвращено', text: `${rec.label} «${rec.title}» снова за ${rec.fromName}.` };
+}
+
+/** Что переносили за последнее время */
+function assignLog(params = {}) {
+  const limit = Math.min(Number(params.limit) || 20, 100);
+  return assignHistory.slice(-limit).reverse().map(h => ({
+    changeId: h.changeId,
+    when: new Date(h.doneAt).toISOString(),
+    what: h.label,
+    id: h.id,
+    title: h.title,
+    from: h.fromName,
+    to: h.toName,
+    отменён: !!h.rolledBack,
+  }));
+}
+
 /* ─────────────── Главная функция ─────────────── */
 
 async function checkAndCall(method, params = {}, userId = 'unknown') {
+
+  /* 0. Журнал переносов и откат */
+  if (method === 'lp.assign.log')      return assignLog(params);
+  if (method === 'lp.assign.rollback') return await assignRollback(params, userId);
+
   const isRead = READ_METHODS.has(method);
   const isWrite = WRITE_METHODS.has(method);
 
@@ -251,6 +375,36 @@ async function checkAndCall(method, params = {}, userId = 'unknown') {
     touchCounter(userId, 'day');
   }
 
+  /* 5б. Ответственный меняется свободно — просто запоминаем, кто был */
+  let assignMove = null;
+  const ownerKey = OWNER_FIELD[method];
+  if (ownerKey && fields[ownerKey] !== undefined) {
+    try {
+      let cur = null;
+      if (method === 'crm.deal.update') cur = await bitrix('crm.deal.get', { id: params.id });
+      else if (method === 'crm.lead.update') cur = await bitrix('crm.lead.get', { id: params.id });
+      else if (method === 'crm.contact.update') cur = await bitrix('crm.contact.get', { id: params.id });
+      else if (method === 'crm.item.update') {
+        const r = await bitrix('crm.item.get', { entityTypeId: INVOICE_ENTITY, id: params.id });
+        cur = r.item || r;
+      }
+      if (cur) {
+        const fromId = Number(cur[ownerKey]) || null;
+        const toId = Number(fields[ownerKey]) || null;
+        if (fromId !== toId) {
+          assignMove = {
+            fromId, toId,
+            title: cur.TITLE || cur.title ||
+              [cur.LAST_NAME, cur.NAME].filter(Boolean).join(' ') || null,
+          };
+        }
+      }
+    } catch (e) {
+      log({ userId, method, verdict: 'WARN', reason: 'не удалось прочитать прежнего ответственного',
+            error: e.message });
+    }
+  }
+
   /* 6. Пишем в журнал ДО выполнения */
   log({
     userId, method, verdict: 'ALLOW',
@@ -264,6 +418,9 @@ async function checkAndCall(method, params = {}, userId = 'unknown') {
   try {
     const result = await bitrix(method, params);
     log({ userId, method, verdict: 'DONE', id: params.id, result: JSON.stringify(result).slice(0, 300) });
+    if (assignMove) {
+      await rememberAssign(method, params.id, assignMove.fromId, assignMove.toId, assignMove.title);
+    }
     return result;
   } catch (e) {
     log({ userId, method, verdict: 'ERROR', id: params.id, error: e.message });
@@ -300,4 +457,8 @@ process.on('uncaughtException', (err) => {
   log({ verdict: 'CRASH_PREVENTED', error: String(err && err.message || err) });
 });
 
-module.exports = { checkAndCall, checkAndCallBatch, LIMITS, READ_METHODS, WRITE_METHODS };
+module.exports = {
+  checkAndCall, checkAndCallBatch,
+  LIMITS, READ_METHODS, WRITE_METHODS,
+  assignLog,
+};
