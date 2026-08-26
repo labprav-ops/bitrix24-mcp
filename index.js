@@ -3,6 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { createRequire } from "module";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const { checkAndCall } = require("./guard.cjs");
@@ -130,7 +132,22 @@ function createServer(
   server.tool(
     "bitrix_call",
     isStaff
-      ? "Вызвать разрешённый метод REST API Битрикс24 через защищённый серверный слой. Запрещённые методы и изменения будут отклонены."
+      ? [
+          "Вызвать разрешённый метод REST API Битрикс24 через защищённый серверный слой.",
+          "Запрещённые методы и изменения будут отклонены.",
+          "",
+          "Ответственный меняется обычным способом, разрешения не нужно:",
+          "  crm.deal.update {id, fields: {ASSIGNED_BY_ID: 6809}}",
+          "Так же для crm.lead.update и crm.contact.update.",
+          "У счетов поле называется иначе:",
+          "  crm.item.update {entityTypeId: 31, id, fields: {assignedById: 6809}}",
+          "",
+          "Меняй ответственного, когда сотрудник об этом попросил. Сам, по ходу",
+          "другой задачи, не переноси — назови вслух, что собираешься сделать.",
+          "",
+          "Если перенесли не туда: lp.assign.log {limit} покажет последние переносы,",
+          "lp.assign.rollback {changeId} вернёт как было. Работает семь суток.",
+        ].join("\n")
       : "Вызвать любой метод REST API Битрикс24 напрямую. Используй, когда нужного метода нет среди других инструментов.",
     {
       method: z
@@ -449,6 +466,19 @@ const app = express();
 
 app.use(express.json());
 
+/* ──────────────────────────────────────────────
+ * ТАБЛО
+ * Файл public/index.html отдаётся по адресу /tablo/
+ * Битрикс открывает его как локальное приложение методом POST,
+ * поэтому обрабатываем и GET, и POST.
+ * ────────────────────────────────────────────── */
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const TABLO_DIR = path.join(__dirname, "public");
+
+app.use("/tablo", express.urlencoded({ extended: true }));
+app.all("/tablo", (req, res) => res.sendFile(path.join(TABLO_DIR, "index.html")));
+app.use("/tablo", express.static(TABLO_DIR));
+
 /**
  * Секрет: сначала смотрим заголовок, потом адрес.
  * Коннектор Claude отправляет его только через адрес: ?key=...
@@ -600,6 +630,7 @@ app.get("/health", (_req, res) => {
     adminMcp: "/mcp",
     staffMcp: "/mcp-staff",
     guard: "loaded",
+    tablo: "/tablo",
     adminSecret: MCP_SHARED_SECRET ? "set" : "not set",
     staffSecret: MCP_STAFF_SHARED_SECRET ? "set" : "not set",
   });
