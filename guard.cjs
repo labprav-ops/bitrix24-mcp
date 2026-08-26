@@ -26,7 +26,22 @@ const fs = require('fs');
 const path = require('path');
 
 const WEBHOOK = (process.env.BITRIX_WEBHOOK_URL || '').replace(/\/+$/, '');
-const LOG_FILE = process.env.GUARD_LOG || path.join(__dirname, 'guard.log');
+
+/* Куда писать журнал.
+   В контейнере Timeweb папка приложения только для чтения, и запись
+   в неё падает с EACCES — журнал молча теряется. Поэтому проверяем
+   доступ заранее и уходим во временную папку. */
+const LOG_FILE = (function () {
+  const wanted = process.env.GUARD_LOG || path.join(__dirname, 'guard.log');
+  try {
+    fs.appendFileSync(wanted, '');
+    return wanted;
+  } catch (e) {
+    const fallback = path.join(require('os').tmpdir(), 'guard.log');
+    console.log('[guard] нет прав на ' + wanted + ', пишу в ' + fallback);
+    return fallback;
+  }
+})();
 
 /* ─────────────── Настройки ─────────────── */
 
@@ -52,6 +67,8 @@ const READ_METHODS = new Set([
   'user.search',                        /* найти сотрудника по имени */
   'crm.dealcategory.list', 'crm.dealcategory.stage.list',
   'crm.status.list',
+  'disk.storage.getlist', 'disk.folder.getchildren',   /* папки клиентов на Диске */
+  'disk.file.get', 'disk.folder.get',
   'crm.company.get', 'crm.company.list',
   'crm.activity.list', 'crm.timeline.comment.list',
   'crm.dealcategory.list', 'crm.category.list', 'crm.status.list',
