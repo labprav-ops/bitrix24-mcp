@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Табло — Лаборатория правосудия</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --arena:#0B0E14;--panel:#121722;--panel2:#171E2C;--line:#232B3C;
+    --red:#D0021B;--red-glow:rgba(208,2,27,.45);
+    --gold:#F5C518;--green:#38D164;--blue:#39A8EF;--text:#EDF0F6;--muted:#7C8698;
+  }
+  html,body{height:100%}
+  body{background:var(--arena);color:var(--text);font-family:'Golos Text',sans-serif;overflow:hidden;
+    background-image:radial-gradient(1200px 500px at 50% -10%,rgba(208,2,27,.10),transparent 60%),radial-gradient(900px 400px at 90% 110%,rgba(245,197,24,.05),transparent 60%)}
+  .num{font-family:'Unbounded',sans-serif}
+  button{font-family:inherit}
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px 4px;flex-wrap:wrap;gap:10px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:36px;height:36px;border-radius:8px;background:var(--red);display:grid;place-items:center;font-family:'Unbounded';font-weight:900;font-size:17px;color:#fff;box-shadow:0 0 24px var(--red-glow)}
+  .brand h1{font-family:'Unbounded';font-weight:700;font-size:clamp(13px,1.4vw,20px)}
+  .brand small{display:block;color:var(--muted);font-weight:500;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  .head-right{display:flex;align-items:center;gap:14px}
+  .totals{display:flex;gap:18px;text-align:right}
+  .tot .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .tot .val{font-family:'Unbounded';font-weight:700;font-size:clamp(13px,1.6vw,21px)}
+  .val.gold{color:var(--gold)}.val.green{color:var(--green)}.val.blue{color:var(--blue)}.val.red{color:var(--red)}
+  .live{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+  .live-dot{width:9px;height:9px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+  .live-dot.err{background:var(--red);animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .per-switch{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+  .per-switch button{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;padding:5px 10px;border-radius:7px;cursor:pointer;white-space:nowrap}
+  .per-switch button.on{background:var(--line);color:var(--fg);font-weight:600}
+  .icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px}
+  .icon-btn:hover{color:var(--text);border-color:var(--muted)}
+  .icon-btn:focus-visible,.tab-btn:focus-visible,.btn:focus-visible,.fix-btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .tabs{display:flex;gap:7px;padding:2px 24px 6px;flex-wrap:wrap}
+  .tab-btn{background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:7px 14px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer}
+  .tab-btn.active{background:var(--red);border-color:var(--red);color:#fff;box-shadow:0 0 16px var(--red-glow)}
+  .tab-btn .badge{display:inline-block;background:var(--red);color:#fff;border-radius:9px;padding:0 6px;font-size:11px;margin-left:6px}
+  .tab-btn.active .badge{background:#fff;color:var(--red)}
+  main{padding:2px 24px 62px;height:calc(100vh - 112px);overflow:auto}
+  main.noscroll{overflow:hidden}
+  .panel-tab{display:none;height:100%}
+  .panel-tab.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px}
+  .sec-h{font-family:'Unbounded';font-size:12px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin:14px 2px 8px}
+  .sec-h:first-child{margin-top:2px}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:15px;padding:15px 17px 13px;position:relative;overflow:hidden}
+  .card.leader{border-color:var(--gold)}
+  .card.leader::after{content:'ЛИДЕР';position:absolute;top:11px;right:-32px;transform:rotate(38deg);background:var(--gold);color:#1a1a1a;font-family:'Unbounded';font-size:9px;font-weight:700;padding:3px 36px;letter-spacing:.1em}
+  .card.help{border-color:var(--red);box-shadow:0 0 20px var(--red-glow)}
+  .card-top{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .ava{width:42px;height:42px;border-radius:11px;background:var(--line);display:grid;place-items:center;font-size:18px;flex:none;background-size:cover;background-position:center}
+  .ava.sm{width:30px;height:30px;border-radius:8px;font-size:14px}
+  .ava.gone{filter:grayscale(1);opacity:.6}
+  .who{min-width:0}
+  .who .name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who .deals{font-size:11px;color:var(--muted)}
+  .money3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:7px}
+  .m3{background:#0a0d13;border:1px solid var(--line);border-radius:9px;padding:6px 8px}
+  .m3 .l{font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .m3 .v{font-family:'Unbounded';font-weight:600;font-size:12px;margin-top:2px}
+  .m3 .v.gold{color:var(--gold)}.m3 .v.green{color:var(--green)}.m3 .v.mut{color:var(--muted)}
+  .bar{height:8px;border-radius:5px;background:#0a0d13;border:1px solid var(--line);margin-top:4px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--red),var(--gold));transition:width 1s ease}
+  .bar i.done{background:linear-gradient(90deg,#1f9e4d,var(--green))}
+  .pct-row{display:flex;justify-content:space-between;margin-top:4px;font-size:11px}
+  .pct{font-family:'Unbounded';font-weight:500}
+  .mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px;padding-top:9px;border-top:1px solid var(--line)}
+  .mini{font-size:10px;color:var(--muted)}
+  .mini b{display:block;font-family:'Unbounded';font-size:13px;color:var(--text);font-weight:600;margin-top:2px}
+  .mini b.warn{color:var(--red)}.mini b.ok{color:var(--green)}.mini b.gold{color:var(--gold)}
+  .empty{color:var(--muted);text-align:center;padding:46px 20px;font-size:14px}
+  .note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.5}
+  /* ЮРИСТЫ: одна страница, без прокрутки */
+  #tabLegal{display:none;flex-direction:column;gap:8px;height:100%}
+  #tabLegal.active{display:flex}
+  .lawblock{display:flex;flex-direction:column;min-height:0;flex:1}
+  .lawtable{flex:1;min-height:0;display:grid;gap:4px;align-content:start;overflow:hidden}
+  .lawrow{display:grid;grid-template-columns:minmax(120px,1.6fr) 62px 1fr 62px 62px 62px;gap:8px;align-items:center;
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:9px;padding:5px 10px;font-size:clamp(10px,1.15vh,13px)}
+  .lawrow.head{background:transparent;border-color:transparent;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding:0 10px}
+  .lawrow.over{border-left-color:var(--red)}
+  .lawrow.okk{border-left-color:var(--green)}
+  .lawrow .nm{display:flex;align-items:center;gap:7px;min-width:0}
+  .lawrow .nm span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .lawrow .n{font-family:'Unbounded';font-weight:600;text-align:center}
+  .lawrow .n.warn{color:var(--red)}.lawrow .n.ok{color:var(--green)}.lawrow .n.gold{color:var(--gold)}
+  .loadbar{height:7px;border-radius:4px;background:#0a0d13;border:1px solid var(--line);overflow:hidden}
+  .loadbar i{display:block;height:100%;background:linear-gradient(90deg,#1f9e4d,var(--green))}
+  .loadbar i.over{background:linear-gradient(90deg,var(--gold),var(--red))}
+  /* СВЕРКА */
+  .fix-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:11px;padding:9px 13px;margin-bottom:7px}
+  .fix-row.bx{border-left-color:var(--red)}
+  .fix-row.gs{border-left-color:var(--blue)}
+  .fix-row .t{font-size:13px;font-weight:600}
+  .fix-row .d{font-size:11px;color:var(--muted);margin-top:2px}
+  .fix-row .d s{color:var(--red)}.fix-row .d b{color:var(--green)}
+  .fix-btn{background:var(--red);border:none;color:#fff;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .fix-btn.done{background:#1f9e4d}
+  .fix-btn:disabled{opacity:.5;cursor:default}
+  .fix-btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .ticker{position:fixed;left:0;right:0;bottom:0;height:42px;background:#080a0f;border-top:2px solid var(--red);display:flex;align-items:center;overflow:hidden;z-index:5}
+  .ticker-label{flex:none;background:var(--red);color:#fff;height:100%;display:flex;align-items:center;padding:0 15px;font-family:'Unbounded';font-size:11px;font-weight:700;letter-spacing:.1em}
+  .ticker-track{white-space:nowrap;display:inline-block;padding-left:100%;animation:tick 45s linear infinite;font-size:14px}
+  .ticker-track b{color:var(--gold)}
+  .ticker-track .sep{color:var(--red);margin:0 20px}
+  @keyframes tick{to{transform:translateX(-100%)}}
+  @media (prefers-reduced-motion:reduce){.ticker-track{animation:none;padding-left:16px}.live-dot{animation:none}}
+  #goal{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:rgba(5,6,10,.93);backdrop-filter:blur(4px);text-align:center}
+  #goal.show{display:grid}
+  #goal video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.5;z-index:1}
+  #goal .inner{position:relative;z-index:2}
+  #goal .shout{font-family:'Unbounded';font-weight:900;font-size:clamp(40px,10vw,140px);color:var(--gold);text-shadow:0 0 60px rgba(245,197,24,.55);animation:zoom .7s cubic-bezier(.2,1.6,.4,1) both}
+  #goal .deal-name{font-size:clamp(16px,2.6vw,29px);font-weight:700;margin-top:11px}
+  #goal .deal-sum{font-family:'Unbounded';font-weight:700;font-size:clamp(21px,4.2vw,52px);color:var(--green);margin-top:7px}
+  #goal .deal-mgr{color:var(--muted);font-size:clamp(13px,1.9vw,18px);margin-top:9px}
+  @keyframes zoom{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
+  #confetti{position:fixed;inset:0;z-index:60;pointer-events:none}
+  #flash{position:fixed;inset:0;z-index:55;background:#fff;opacity:0;pointer-events:none}
+  #setup{position:fixed;inset:0;z-index:40;background:rgba(5,6,10,.9);display:none;place-items:center;overflow:auto;padding:26px}
+  #setup.show{display:grid}
+  .panel{width:min(720px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:25px}
+  .panel h2{font-family:'Unbounded';font-size:19px;margin-bottom:6px}
+  .panel .hint{color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:10px}
+  .panel label{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 5px}
+  .panel input{width:100%;background:#0a0d13;border:1px solid var(--line);border-radius:10px;color:var(--text);padding:10px 12px;font-size:14px;font-family:inherit}
+  .panel input:focus-visible{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+  .mgr-plans{margin-top:6px;display:grid;gap:7px;max-height:190px;overflow:auto}
+  .mgr-row{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;align-items:center}
+  .mgr-row span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btns{display:flex;gap:11px;margin-top:18px;flex-wrap:wrap}
+  .btn{border:none;border-radius:10px;padding:11px 19px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--red);color:#fff;box-shadow:0 0 20px var(--red-glow)}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text)}
+  .status-msg{margin-top:11px;font-size:12px;min-height:17px}
+  .status-msg.err{color:var(--red)}.status-msg.ok{color:var(--green)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">ЛП</div>
+    <div><h1>ТАБЛО</h1><small>Лаборатория правосудия · период: <span id="periodHead">месяц</span></small></div>
+  </div>
+  <div class="head-right">
+    <div class="per-switch" id="perSwitch"></div>
+    <div class="totals" id="totalsRow"></div>
+    <div class="live"><span class="live-dot" id="liveDot"></span><span id="liveTxt">офлайн</span></div>
+    <button class="icon-btn" id="btnFull" title="Во весь экран" aria-label="Во весь экран">⛶</button>
+    <button class="icon-btn" id="btnGear" title="Настройки" aria-label="Настройки">⚙</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="Sales">Продажи</button>
+  <button class="tab-btn" data-tab="First">Первая линия</button>
+  <button class="tab-btn" data-tab="Line">Линия live</button>
+  <button class="tab-btn" data-tab="Okk">Качество и ОКК</button>
+  <button class="tab-btn" data-tab="Cash">Касса и дебиторка</button>
+  <button class="tab-btn" data-tab="Legal">Юристы</button>
+  <button class="tab-btn" data-tab="Partner">Партнёрка</button>
+</nav>
+
+<main id="mainEl">
+  <div class="panel-tab active" id="tabSales"><div class="grid" id="gridSales"><div class="empty">Загружаю данные…</div></div><div id="salesOthers"></div>
+</div>
+  <div class="panel-tab" id="tabFirst"><div id="firstBody"><div class="empty">Ожидаю данные…</div></div></div>
+  <div class="panel-tab" id="tabLine"><div id="lineBody"><div class="empty">Ожидаю данные…</div></div></div>
+    <div class="panel-tab" id="tabOkk"><div id="okkBody"><div class="empty">Ожидаю данные…</div></div></div>
+  <div class="panel-tab" id="tabCash"><div id="cashBody"><div class="empty">Ожидаю данные…</div></div></div>
+  <div class="panel-tab" id="tabLegal"><div class="empty">Ожидаю данные…</div></div>
+    <div class="panel-tab" id="tabPartner"><div class="grid" id="gridPartner" style="grid-template-columns:1fr;max-width:520px;margin:0 auto"><div class="empty">Ожидаю данные…</div></div>
+    <div id="afterBody"></div></div>
+</main>
+
+<div class="ticker">
+  <div class="ticker-label" style="cursor:pointer" onclick="document.getElementById('btnGear').click()" title="Открыть настройки">ПОБЕДЫ ⚙</div>
+  <div style="overflow:hidden;flex:1"><div class="ticker-track" id="tickerTrack">Ждём первую победу месяца…</div></div>
+</div>
+
+<div id="goal" role="alert">
+  <video id="goalVideo" muted playsinline style="display:none"></video>
+  <div class="inner">
+  <div class="shout" id="gShout">ПОБЕДА!</div>
+  <div class="deal-name" id="gTitle"></div>
+  <div class="deal-sum num" id="gSum"></div>
+  <div class="deal-mgr" id="gMgr"></div>
+</div></div>
+<div id="flash"></div>
+<canvas id="confetti"></canvas>
+
+<div id="setup" class="show">
+  <div class="panel">
+    <h2>Настройки табло</h2>
+    <p class="hint">Вебхук: <b>Разработчикам → Другое → Входящий вебхук</b>, права <b>CRM</b> и <b>Пользователи</b>. Воронки зашиты: Продажи (3), БФЛ (1), Миграция и общий юр (7), Партнёрка (9).</p>
+    <label for="fHook">Ссылка входящего вебхука</label>
+    <input type="url" id="fHook" placeholder="https://portal.bitrix24.ru/rest/1/xxxxxxxx/">
+
+    <p class="hint">В таблице: <b>Файл → Поделиться → Опубликовать в интернете</b> → выбрать лист «Касса миграция» → формат CSV → скопировать ссылку. То же для листа кассы БФЛ. Без публикации браузер не сможет прочитать таблицу.</p>
+
+    <div class="row3">
+      <div><label for="fMonth">Месяц</label><input type="month" id="fMonth"></div>
+      <div><label for="fPoll">Обновление, сек</label><input type="number" id="fPoll" value="25" min="10"></div>
+      <div><label for="fMaxLoad">Норма дел на юриста</label><input type="number" id="fMaxLoad" value="60"></div>
+      <div><label for="fLawCons">Юристу за консультацию, ₽</label><input type="number" id="fLawCons" value="500"></div>
+      <div><label for="fMgrProfit">Чистая прибыль миграции за месяц, ₽</label><input type="number" id="fMgrProfit" placeholder="с листа «Сводка»"></div>
+      <div><label for="fMgrAdv">Аванс Дилнозы на начало месяца, ₽</label><input type="number" id="fMgrAdv" placeholder="0"></div>
+    </div>
+    <label>Кто где работает</label>
+    <p class="hint" style="margin-bottom:2px">Вкладка «Продажи» показывает только продажников, «Первая линия» — только первую линию. Остальные скрыты, но их деньги видны отдельной строкой и входят в общую кассу.</p>
+    <div class="mgr-plans" id="roleBox"><div class="hint">Появится после загрузки сотрудников.</div></div>
+
+    <label>Смены первой линии за месяц</label>
+    <p class="hint" style="margin-bottom:2px">Табло само считает дни, в которые были консультации. Здесь можно указать общее число смен, если человек выходил, но клиентов не было, — такие дни оплачиваются по минимуму 2 000 ₽. Консультации: бесплатная 500, платная 1 000, у Валентина 1 500. За смену платится большее из минимума и заработанного за день.</p>
+    <div class="mgr-plans" id="shiftBox"><div class="hint">Появится после загрузки.</div></div>
+
+    <label>Планы по кассе на месяц, ₽</label>
+    <div class="mgr-plans" id="cashPlans"></div>
+    <label>Планы юристов: дел за месяц</label>
+    <div class="mgr-plans" id="legalPlans"></div>
+
+    <label>План сбора дебиторки за месяц, ₽</label>
+    <div class="row3">
+    </div>
+
+    <label>Видео победы</label>
+    <p class="hint" style="margin-bottom:2px">Выберите сотрудника и вставьте ссылку — следующая строка появится сама. Пункт «Для остальных» задаёт видео тем, у кого своего нет. Ссылка на mp4 или webm: свой сервер, Диск Битрикса (прямая ссылка) или любой хостинг.</p>
+    <div class="mgr-plans" id="videoInputs"></div>
+
+    <label>Качество первой линии: % по скрипту и оценка ОКК (0–10)</label>
+    <p class="hint" style="margin-bottom:2px">Вводится вручную, пока анализ разговоров не пишет оценки в Битрикс.</p>
+    <div class="mgr-plans" id="okkInputs"></div>
+    <div class="btns">
+      <button class="btn primary" id="btnSave">Сохранить и запустить</button>
+      <button class="btn ghost" id="btnTest">Тест победы 🎉</button>
+      <button class="btn ghost" id="btnSound">Звук: вкл</button>
+      <button class="btn ghost" id="btnCloseSetup">Свернуть настройки</button>
+    </div>
+    <div class="status-msg" id="setupMsg"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $=s=>document.querySelector(s);
+const LS='lp_scoreboard_v4';
+const fmt=n=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(n)+' ₽';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+const CAT_SALES=3,CAT_BFL=1,CAT_MIG=7,CAT_PARTNER=9;
+const INV=31,PAID='DT31_3:P';
+const DEBT=['DT31_3:PROSTRI','DT31_3:SOVS','DT31_3:UC_95Z6CK','DT31_3:2'];
+const P_WORK=['C9:UC_W58W86','C9:UC_AG4ELK','C9:UC_B8YDKO','C9:UC_YDEVZ8'];
+const P_SALE=['C9:UC_AG4ELK','C9:UC_B8YDKO','C9:UC_YDEVZ8'];
+const STALE=10, CONSULT=3000;
+const LEAD_STAGES=[
+  {id:'NEW',n:'Пирожки'},{id:'PROCESSED',n:'Первый контакт'},{id:'UC_CMBNIU',n:'Повторный звонок'},
+  {id:'UC_H49YUZ',n:'Третий контакт'},{id:'UC_6XX1DS',n:'Последний контакт'},{id:'UC_RC6W8X',n:'Рассылка'},
+  {id:'UC_QO6GBZ',n:'Партнёры'},{id:'CONVERTED',n:'Качественный лид'},
+  {id:'JUNK',n:'Некачественный'},{id:'2',n:'Нецелевой после звонка'},{id:'10',n:'Песочница'},{id:'11',n:'Повтор'}];
+const payDate=i=>i.ufCrmSmartInvoiceDatePay||i.movedTime;   /* реальная дата платежа */
+const invName=(i,dm)=>{const t=(i.title||'').trim();
+  if(/^(счёт|счет)\s*#|^\d+-й платёж|^аванс|^вся сумма|^расход/i.test(t)){
+    const d=dm&&dm[String(i.parentId2)]; if(d&&d.TITLE)return d.TITLE.trim()+' — '+t;}
+  return t||('Счёт '+i.id)};
+/* Консультация состоялась = клиент пришёл. C3:UC_GVXKH8 «Встреча состоялась» и всё, что после неё */
+const HELD_STAGES=['C3:UC_GVXKH8','C3:NEW','C3:WON','C3:6'];
+const VAL_PRICE=15000;                 /* консультация лично с Валентином */
+const CONSULT_SUMS=[3000,5000,15000];  /* цены консультаций — по ним отличаем их от договоров */
+/* ── СТАВКИ: лист «Ставки» базы знаний, менять только там ── */
+const R={
+  minCheck:40000,        /* порог по чеку: договоры ниже не в зачёт */
+  /* первая линия */
+  flShift:2000,          /* гарант за отработанный день, ниже него день не оплачивается */
+  /* Баллы за консультацию — по ФОРМАТУ, а не по деньгам.
+     Дистанционная бесплатная без записи на услугу правилами не разрешена
+     и балла не даёт: система не должна платить за нарушение. */
+  flBall:{val:3, adv:1.5, paid:1, office:0.5, service:0.5, freeDir:0.5, bad:0},
+  /* Ставка за балл по сумме баллов периода. Три ступени вместо шести:
+     шесть никто не помнит, три помнит каждый, форма кривой та же. */
+  flTiers:[[36,1300],[21,1000],[0,700]],
+  /* Договор превращается в баллы: сумма делить на сто тысяч.
+     Не меньше балла, через Валентина не меньше 2,5, потолок 10. */
+  flDogMin:40000, flDogBase:100000, flDogValMin:2.5, flDogCap:10,
+  flDays:30,             /* подтверждение договора, дней */
+
+  /* ── Руководитель направления ──
+     50 % чистой прибыли, гарант 100 000 ₽ выплачивается всегда
+     и гасится из будущих долей. С августа 2026 схема действует
+     только для миграции: БФЛ за полгода дал 102 676 ₽ прибыли
+     при 600 000 ₽ выплаченных гарантов. */
+  mgrId:2547,            /* Дилноза, руководитель «Миграция» */
+  mgrDir:'mig',
+  mgrShare:0.5,
+  mgrGuarantee:100000,
+  /* продавцы */
+  sPct:0.12,             /* % от оплаченного договора */
+  sGuar:30000,           /* гарант в месяц */
+  sCap:0.16,             /* потолок от собранного лично */
+  sSameDay:1000,         /* бонус за продажу в день консультации */
+  /* юрист полного цикла */
+  lPct:0.10, lGuarNew:70000, lGuarOld:50000,
+  lCheck:[[80000,1.1],[50000,1],[0,0.85]],   /* коэффициент среднего чека */
+  /* исполнение — прайс за операцию */
+  op:{П1:2500,П2:5000,П3:8000,З1:7000,В1:5000,В2:3000,Б1:2500,Б2:2500},
+  opFinal:0.02,          /* Ф1: % от суммы завершённых дел */
+  opGuar:40000           /* гарант исполнителя */
+};
+function checkCoef(avg){for(const [lim,k] of R.lCheck)if(avg>=lim)return k;return 0.85}
+const DIRS=[{k:'bfl',t:'Банкротство'},{k:'mig',t:'Миграция'},{k:'legal',t:'Общий юр'}];
+const FB={1:'Валентин Дибровенко',19:'Корнел Бежан',21:'Александра Бежан',25:'Помощник юриста',417:'Светлана',679:'Кирилл',817:'Ольга',2043:'Абдугани Дадобоев',2547:'Дилноза Косимова',4007:'Егор Едомин',6321:'Марк Миронов',6363:'Оксана (Жаклин)',6367:'Виктория Стулова',6393:'Игорь Скоробогатов',6809:'Джасур Артыков',6903:'Артур Камалтдинов',6939:'Анар Кафаров',6969:'Анна Карлова'};
+/* как сотрудники подписаны в Google-кассе → ID в Битриксе */
+const GNAME={'абдугани':2043,'дилноза':2547,'валентин':1,'валентина':6367,'виктория':6367,'корнел':19,'джасур':6809,'оксана':6363,'анна':6969,'ольга':817,'марк':6321,'егор':4007,'игорь':6393,'александра':21,'артур':6903,'анар':6939,'дибровенко валентин':1,'бежан корнел':19};
+
+let cfg={hook:'',month:'',period:'two',mgrProfit:0,mgrAdvance:0,from:'2026-08-10',roles:{},shifts:{},poll:25,sound:true,maxLoad:60,cashPlans:{},legalPlans:{},okk:{},videos:{},videoAll:'',lawConsult:500};
+try{Object.assign(cfg,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
+/* Открыто внутри Битрикса как локальное приложение — берём его токен,
+   вебхук в этом случае не нужен и в браузере не хранится */
+(function(){
+  /* Битрикс шлёт токен в теле POST, сервер кладёт его в window.__BX.
+     Адресную строку тоже смотрим — на случай ручного открытия. */
+  const p=new URLSearchParams(location.search);
+  const bx=window.__BX||{};
+  const auth=bx.auth||p.get('AUTH_ID')||p.get('auth');
+  const dom=bx.domain||p.get('DOMAIN');
+  if(auth&&dom){cfg.hook='https://'+dom+'/rest';cfg.authId=auth;cfg.embedded=true}
+})();
+
+/* ── Кто может открывать настройки ──
+   Валентин, Корнел, Светлана, Дилноза. Внутри Битрикса портал сам говорит,
+   кто открыл табло. Снаружи (локальный файл с вебхуком) проверять некого —
+   там доступ и так только у того, у кого файл. */
+const ADMINS=new Set(['1','19','417','2547']);
+let meId=null, canSetup=!false;
+/* ── Видео победы ──
+   Строка = сотрудник плюс ссылка. Заполнил — снизу появилась пустая.
+   Отдельным пунктом «Для остальных»: видео для тех, у кого своего нет. */
+const VID_ALL='__all__';
+function renderVideoRows(){
+  const vb=$('#videoInputs'); if(!vb)return;
+  const staff=[...new Set([...Object.keys(users),...Object.keys(cfg.videos||{})])]
+    .filter(id=>id!==VID_ALL&&(users[id]||cfg.videos[id]))
+    .sort((a,b)=>nm(a).localeCompare(nm(b),'ru'));
+
+  /* уже заданные, плюс одна пустая строка снизу */
+  const taken=Object.keys(cfg.videos||{}).filter(k=>cfg.videos[k]);
+  if(cfg.videoAll&&!cfg.videos[VID_ALL]){cfg.videos[VID_ALL]=cfg.videoAll;taken.push(VID_ALL)}
+  const rows=taken.concat(['']);
+
+  vb.innerHTML=rows.map((id,i)=>{
+    const opts=[`<option value="">— выберите сотрудника —</option>`,
+      `<option value="${VID_ALL}" ${id===VID_ALL?'selected':''}>Для остальных</option>`]
+      .concat(staff.filter(s=>s===id||!cfg.videos[s])
+        .map(s=>`<option value="${s}" ${s===id?'selected':''}>${esc(nm(s))}</option>`));
+    return `<div class="mgr-row" data-i="${i}" style="grid-template-columns:1fr 1.6fr auto;gap:6px">
+      <select data-vsel="${i}">${opts.join('')}</select>
+      <input type="url" data-vurl="${i}" value="${esc(cfg.videos[id]||'')}" placeholder="https://…/pobeda.mp4">
+      ${id?`<button type="button" data-vdel="${id}" class="icon-btn" title="Убрать">✕</button>`:'<span></span>'}
+    </div>`;
+  }).join('');
+
+  /* собрать значения из полей в cfg */
+  const collect=()=>{
+    const next={};
+    vb.querySelectorAll('[data-vsel]').forEach(sel=>{
+      const i=sel.dataset.vsel;
+      const url=(vb.querySelector(`[data-vurl="${i}"]`)||{}).value||'';
+      if(sel.value&&url.trim())next[sel.value]=url.trim();
+    });
+    cfg.videos=next;
+    cfg.videoAll=next[VID_ALL]||'';
+  };
+
+  vb.querySelectorAll('select,input').forEach(el=>{
+    el.onchange=()=>{collect();renderVideoRows()};
+  });
+  vb.querySelectorAll('[data-vdel]').forEach(b=>{
+    b.onclick=()=>{delete cfg.videos[b.dataset.vdel];if(b.dataset.vdel===VID_ALL)cfg.videoAll='';renderVideoRows()};
+  });
+}
+
+function renderPeriodSwitch(){
+  const box=$('#perSwitch'); if(!box)return;
+  box.innerHTML=PERIODS.map(p=>`<button data-p="${p.k}" class="${curPeriod()===p.k?'on':''}">${p.t}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    cfg.period=b.dataset.p;
+    try{localStorage.setItem(LS,JSON.stringify(cfg))}catch(e){}
+    renderPeriodSwitch();
+    const ph=$('#periodHead'); if(ph)ph.textContent=periodLabel();
+    tick();
+  });
+}
+
+async function checkAccess(){
+  if(!cfg.embedded){canSetup=true;return}
+  try{
+    const j=await bx('user.current',{});
+    meId=String((j.result&&j.result.ID)||'');
+    canSetup=ADMINS.has(meId);
+  }catch(e){canSetup=false}
+  const gear=$('#btnGear'); if(gear)gear.style.display=canSetup?'':'none';
+  const lbl=document.querySelector('.ticker-label'); if(lbl&&!canSetup){lbl.style.cursor='default';lbl.onclick=null;lbl.textContent='ПОБЕДЫ'}
+  if(!canSetup)$('#setup').classList.remove('show');
+}
+
+let users={},knownWon=null,knownPaid=null,timer=null,ticking=false;
+let lastPaid=[],lastGoogle=[],diffs=[];
+
+/* ── REST ── */
+async function bx(m,p={}){
+  for(let a=0;a<4;a++){
+    const url=cfg.embedded
+      ? cfg.hook.replace(/\/+$/,'')+'/'+m+'.json?auth='+encodeURIComponent(cfg.authId)
+      : cfg.hook.replace(/\/+$/,'')+'/'+m+'.json';
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
+    const j=await r.json();
+    if(!j.error)return j;
+    if(/QUERY_LIMIT|Too many|503/i.test(j.error+' '+(j.error_description||''))){await sleep(1200*(a+1));continue}
+    throw new Error(j.error_description||j.error);
+  }
+  throw new Error('Битрикс ограничил частоту запросов');
+}
+async function allDeals(p){let s=0,o=[];for(let i=0;i<40;i++){const j=await bx('crm.deal.list',{...p,start:s});o=o.concat(j.result||[]);if(j.next===undefined)break;s=j.next;await sleep(350)}return o}
+async function allLeads(p){let s=0,o=[];for(let i=0;i<40;i++){const j=await bx('crm.lead.list',{...p,start:s});o=o.concat(j.result||[]);if(j.next===undefined)break;s=j.next;await sleep(350)}return o}
+async function allItems(p){let s=0,o=[];for(let i=0;i<40;i++){const j=await bx('crm.item.list',{...p,start:s});o=o.concat((j.result&&j.result.items)||[]);if(j.next===undefined)break;s=j.next;await sleep(350)}return o}
+/* ── Формат консультации ──
+   Читается из поля сделки «Формат консультации». Поле не заполнено —
+   определяем по деньгам, как раньше, но помечаем строку как неточную. */
+const FMT_FIELD='UF_CRM_CONSULT_FMT';
+/* Битрикс отдаёт списочное поле НОМЕРОМ значения, а не текстом.
+   Номера поля 5729 «Формат консультации», заведённого 25.08.2026. */
+const FMT_ID={'4653':'val','4655':'adv','4657':'paid','4659':'office',
+              '4661':'service','4663':'freeDir','4665':'bad'};
+/* запасной разбор по словам — если поле пересоберут заново */
+const FMT_MAP=[
+  [/валентин/i,      'val'],
+  [/адвокат/i,       'adv'],
+  [/профильн|3\s*000/i,'paid'],
+  [/офис/i,          'office'],
+  [/по услуге|услуг/i,'service'],
+  [/по направлению/i,'freeDir'],
+  [/без услуги|нарушен/i,'bad']
+];
+function fmtOf(deal,paidSum){
+  const raw=String(deal[FMT_FIELD]||'').trim();
+  if(raw){
+    if(FMT_ID[raw])return {k:FMT_ID[raw],sure:true};
+    for(const [re,k] of FMT_MAP)if(re.test(raw))return {k,sure:true};
+  }
+  /* поле пустое — старая логика по сумме */
+  if(paidSum>=15000)return {k:'val',sure:false};
+  if(paidSum>=5000) return {k:'adv',sure:false};
+  if(paidSum>0)     return {k:'paid',sure:false};
+  return {k:'freeDir',sure:false};
+}
+const FMT_NAME={val:'Валентин',adv:'адвокат',paid:'платная',office:'офис 15 мин',
+  service:'дистанц по услуге',freeDir:'бесплатная по направлению',bad:'дистанц без услуги'};
+/* Балл за договор */
+function dogBall(sum,viaVal){
+  if(!sum||sum<R.flDogMin)return 0;
+  return Math.min(R.flDogCap,Math.max(viaVal?R.flDogValMin:1,sum/R.flDogBase));
+}
+function ballRate(total){for(const [lim,r] of R.flTiers)if(total>=lim)return r;return R.flTiers[R.flTiers.length-1][1]}
+
+/* ── Роли: кто в продажах, кто на первой линии ── */
+const ROLE_DEF={1:'sales',19:'sales',6809:'sales',4007:'sales',6321:'sales',2043:'sales',
+  6363:'first',817:'first',6367:'first',6969:'first'};
+const ROLE_NAMES={sales:'Продажи',first:'Первая линия',off:'Не показывать'};
+function roleOf(id){const r=cfg.roles[String(id)];return r||ROLE_DEF[id]||'off'}
+function idsOfRole(r){const out=new Set();
+  Object.keys(ROLE_DEF).forEach(id=>{if(roleOf(id)===r)out.add(String(id))});
+  Object.keys(cfg.roles).forEach(id=>{if(cfg.roles[id]===r)out.add(String(id))});
+  return out}
+/* ── Период ──
+   Один переключатель на всё табло: день, неделя, две недели, месяц.
+   Две недели здесь не для красоты: ставка за балл у первой линии
+   считается именно за две недели, а не за месяц. */
+const PERIODS=[
+  {k:'day',   t:'День',       days:1},
+  {k:'week',  t:'Неделя',     days:7},
+  {k:'two',   t:'2 недели',   days:14},
+  {k:'month', t:'Месяц',      days:0}
+];
+function curPeriod(){return cfg.period||'two'}
+function periodDays(){const p=PERIODS.find(x=>x.k===curPeriod());return p?p.days:14}
+function curMonth(){const d=new Date();return cfg.month||`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`}
+const MONTHS=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+
+function periodStart(){
+  if(curPeriod()==='month')return curMonth()+'-01T00:00:00';
+  const n=periodDays();
+  const d=new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate()-(n-1));
+  return d.toISOString().slice(0,19);
+}
+function periodEnd(){
+  if(curPeriod()==='month'){
+    const [y,m]=curMonth().split('-').map(Number);
+    const d=new Date(y,m,0);
+    return `${curMonth()}-${String(d.getDate()).padStart(2,'0')}T23:59:59`;
+  }
+  const d=new Date(); d.setHours(23,59,59,0);
+  return d.toISOString().slice(0,19);
+}
+function periodLabel(){
+  if(curPeriod()==='month'){const [y,m]=curMonth().split('-').map(Number);return MONTHS[m-1]+' '+y}
+  const dd=x=>String(x.getDate()).padStart(2,'0')+'.'+String(x.getMonth()+1).padStart(2,'0');
+  const a=new Date(periodStart()), b=new Date();
+  return curPeriod()==='day' ? ('сегодня, '+dd(b)) : (dd(a)+' — '+dd(b));
+}
+/* старые имена оставлены, чтобы не переписывать полтабло */
+function monthStart(){return periodStart()}
+function monthEnd(){return periodEnd()}
+function monthLabel(){return periodLabel()}
+function fromISO(){return periodStart()}
+function daysAgo(n){return new Date(Date.now()-n*86400000).toISOString().slice(0,19)}
+/* ── Дебиторка уволенных ──
+   Сотрудник ушёл из Битрикса — его неоплаченные счета не должны стать ничьими.
+   На табло они переходят к РОПу, он раздаёт дела дальше.
+   В самом Битриксе ответственный не меняется: это витрина, а не правка данных. */
+const ROP=19;                       /* Корнел */
+function debtOwner(id){
+  const k=String(id||'');
+  if(!k)return String(ROP);
+  if(users[k])return k;             /* работает — его долг */
+  return String(ROP);               /* уволен или неизвестен — РОПу */
+}
+function isInherited(id){return debtOwner(id)!==String(id||'')}
+
+const EX=new Set(['5741','6775','6901','6937','6707','6723']); /* уволенные — правится здесь */
+function nm(id){const n=(users[id]&&users[id].name)||FB[id]||('Сотрудник #'+id);return EX.has(String(id))?n+' (экс)':n}
+function ph(id){return users[id]&&users[id].photo||''}
+function ava(id,e,sm){const p=ph(id);return `<div class="ava${sm?' sm':''}${EX.has(String(id))?' gone':''}" ${p?`style="background-image:url('${p}')"`:''}>${p?'':e}</div>`}
+async function loadUsers(){try{const j=await bx('user.get',{FILTER:{ACTIVE:'Y'}});(j.result||[]).forEach(u=>users[u.ID]={name:[u.NAME,u.LAST_NAME].filter(Boolean).join(' ')||('#'+u.ID),photo:u.PERSONAL_PHOTO||''});try{renderRoles()}catch(e){}}catch(e){}}
+
+/* ── Google CSV ── */
+function parseCSV(t){
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++} else q=false } else f+=c }
+    else if(c==='"')q=true;
+    else if(c===','){row.push(f);f=''}
+    else if(c==='\n'){row.push(f);rows.push(row);row=[];f=''}
+    else if(c!=='\r')f+=c;
+  }
+  row.push(f);rows.push(row);return rows;
+}
+const money=s=>{const n=parseFloat(String(s||'').replace(/[^\d.,-]/g,'').replace(/\s/g,'').replace(',','.'));return isNaN(n)?0:n};
+function parseDate(s){
+  const m=String(s||'').match(/(\d{1,2})[.\/](\d{1,2})(?:[.\/](\d{2,4}))?/);
+  if(!m)return null;
+  const y=m[3]?(m[3].length===2?2000+ +m[3]:+m[3]):new Date().getFullYear();
+  return new Date(y,+m[2]-1,+m[1]);
+}
+async function loadGoogle(){
+  const urls=(cfg.csv||'').split(',').map(s=>s.trim()).filter(Boolean);
+  if(!urls.length)return [];
+  const out=[];
+  for(const u of urls){
+    try{
+      const r=await fetch(u); if(!r.ok)continue;
+      const rows=parseCSV(await r.text());
+      let hi=-1,idx={};
+      for(let i=0;i<Math.min(rows.length,15);i++){
+        const low=rows[i].map(c=>String(c).toLowerCase().trim());
+        if(low.some(c=>c.includes('ответственн'))&&low.some(c=>c.includes('фио')||c.includes('клиент'))){
+          hi=i;
+          low.forEach((c,j)=>{
+            if((c.includes('фио')||c.includes('клиент'))&&idx.client===undefined)idx.client=j;
+            if(c.includes('ответственн'))idx.resp=j;
+            if(c.includes('дата')&&idx.date===undefined)idx.date=j;
+          });
+          break;
+        }
+      }
+      if(hi<0)continue;
+      const low=rows[hi].map(c=>String(c).toLowerCase().trim());
+      const sumCols=[],linkCols=new Set();
+      low.forEach((c,j)=>{
+        if(c.includes('наличк')||c.includes('перевод')||c.includes('ссылке')||c.includes('qr')||c==='внесено'){
+          sumCols.push(j);
+          if(c.includes('ссылке')||c.includes('qr'))linkCols.add(j);
+        }});
+      for(let i=hi+1;i<rows.length;i++){
+        const r2=rows[i];
+        const client=String(r2[idx.client]||'').trim();
+        if(!client)continue;
+        let sum=0,cashPart=0;
+        sumCols.forEach(j=>{const v=money(r2[j]);sum+=v;if(v&&!linkCols.has(j))cashPart+=v});
+        if(!sum)continue;
+        const isCash=cashPart>0;
+        const respRaw=String(r2[idx.resp]||'').trim();
+        const key=respRaw.toLowerCase().replace(/\s+/g,' ');
+        const respId=GNAME[key]||GNAME[key.split(' ')[0]]||null;
+        out.push({client,sum,cash:isCash,respRaw,respId,date:parseDate(r2[idx.date]),row:i+1,src:u});
+      }
+    }catch(e){}
+  }
+  return out;
+}
+
+/* ── Сверка ── */
+function buildDiffs(paid,g){
+  const from=new Date(fromISO());
+  const B=paid.filter(i=>new Date(i.movedTime)>=from).map(i=>({...i,sum:+i.opportunity||0,d:new Date(i.movedTime)}));
+  const G=g.filter(x=>!x.date||x.date>=from);
+  const usedG=new Set(),res=[];
+  // 1) сопоставляем по сумме + дате ±2 дня
+  B.forEach(b=>{
+    let best=-1,bestD=9e9;
+    G.forEach((x,i)=>{
+      if(usedG.has(i))return;
+      if(Math.abs(x.sum-b.sum)>0.5)return;
+      const dd=x.date?Math.abs(x.date-b.d)/86400000:0;
+      if(dd<=2&&dd<bestD){bestD=dd;best=i}
+    });
+    if(best>=0){usedG.add(best);b.g=G[best];G[best].b=b}
+  });
+  // 2) не сопоставленные по сумме — пробуем по имени клиента
+  B.filter(b=>!b.g).forEach(b=>{
+    const t=(b.title||'').toLowerCase().replace(/[^а-яa-z]/g,'').slice(0,6);
+    if(t.length<4)return;
+    G.forEach((x,i)=>{
+      if(usedG.has(i)||b.g)return;
+      const c=x.client.toLowerCase().replace(/[^а-яa-z]/g,'').slice(0,6);
+      if(c.length>=4&&(c.startsWith(t.slice(0,4))||t.startsWith(c.slice(0,4)))){usedG.add(i);b.g=x;x.b=b}
+    });
+  });
+  // расхождения
+  B.forEach(b=>{
+    const byCash=b.g&&b.g.cash;   /* нал/перевод → правда в Google; ссылка/QR → правда в Битриксе */
+    if(!b.g){ res.push({type:'no_google',b,txt:`${nm(b.assignedById)} — «${b.title}» ${fmt(b.sum)}`,det:'Оплата есть в Битриксе, строки в Google-кассе нет'}); return; }
+    if(Math.abs(b.g.sum-b.sum)>0.5 && byCash)
+      res.push({type:'fix_bx_sum',b,txt:`${b.g.client} — сумма расходится`,det:`Битрикс <s>${fmt(b.sum)}</s> → Google <b>${fmt(b.g.sum)}</b>`,newSum:b.g.sum});
+    if(b.g.respId && String(b.g.respId)!==String(b.assignedById) && byCash)
+      res.push({type:'fix_bx_resp',b,txt:`${b.g.client} — ответственный расходится`,det:`Битрикс <s>${nm(b.assignedById)}</s> → Google <b>${nm(b.g.respId)}</b>`,newResp:b.g.respId});
+    if(b.g.respId && String(b.g.respId)!==String(b.assignedById) && !byCash)
+      res.push({type:'fix_gs_resp',b,txt:`${b.g.client} — оплата по ссылке, строка ${b.g.row}`,det:`В Google <s>${b.g.respRaw}</s> → поставить <b>${nm(b.assignedById)}</b> (по Битриксу)`});
+    const bt=(b.title||'').trim(), gc=b.g.client.trim();
+    if(bt&&gc&&bt.toLowerCase().replace(/\s/g,'')!==gc.toLowerCase().replace(/\s/g,'')&&!/платёж|платеж|аванс|расход/i.test(bt))
+      res.push({type:'fix_gs_name',b,txt:`Имя клиента, строка ${b.g.row}`,det:`В Google <s>${gc}</s> → по Битриксу <b>${bt}</b>`});
+  });
+  G.forEach(x=>{ if(!x.b) res.push({type:'no_bitrix',g:x,txt:`${x.client} — ${fmt(x.sum)} (${x.respRaw||'без ответственного'})`,det:`Строка ${x.row} в Google есть, счёта в Битриксе нет`}) });
+  return res;
+}
+function findJunk(paid,debt,dm){
+  const all=[...paid,...debt], seen={}, dup=[], orphan=[];
+  all.forEach(i=>{
+    if(!i.parentId2){orphan.push(i);return}
+    const k=i.parentId2+'|'+(+i.opportunity||0)+'|'+(i.title||'').trim().toLowerCase();
+    if(seen[k])dup.push([seen[k],i]); else seen[k]=i;
+  });
+  return {dup,orphan};
+}
+function renderJunk(paid,debt,dm){
+  const {dup,orphan}=findJunk(paid,debt,dm);
+  if(!dup.length&&!orphan.length)return '';
+  return `<div class="sec-h" style="color:var(--red)">Мусор в счетах — дублей ${dup.length}, без сделки ${orphan.length}</div>`
+    + dup.map(pr=>`<div class="fix-row bx"><div><div class="t">${esc(invName(pr[0],dm))}</div>
+      <div class="d">Два одинаковых счёта: #${pr[0].id} и #${pr[1].id} · ${esc(nm(pr[0].assignedById))}</div></div>
+      <div class="num" style="color:var(--red);font-weight:700">${fmt(+pr[0].opportunity||0)}</div></div>`).join('')
+    + orphan.map(i=>`<div class="fix-row bx"><div><div class="t">${esc((i.title||'').trim()||'Счёт '+i.id)}</div>
+      <div class="d">#${i.id} не привязан к сделке · ${esc(nm(i.assignedById))}</div></div>
+      <div class="num" style="color:var(--red);font-weight:700">${fmt(+i.opportunity||0)}</div></div>`).join('');
+}
+function renderSync(){
+  const box=$('#syncBody');
+  const junk=window.__junkHtml||'';
+  if(!cfg.csv){box.innerHTML=junk+'<div class="empty">Вставьте ссылку на опубликованный CSV Google-кассы в настройках (⚙), чтобы включить сверку с таблицей.</div>';
+    $('#syncBadge').style.display=junk?'inline-block':'none';return}
+  const badge=$('#syncBadge');
+  badge.style.display=diffs.length?'inline-block':'none';badge.textContent=diffs.length;
+  if(!diffs.length){box.innerHTML=junk+(junk?'':'<div class="empty">Битрикс и Google-касса сходятся полностью 🎉</div>');return}
+  const grp=(t,title,cls,note)=>{
+    const arr=diffs.filter(d=>t.includes(d.type));
+    if(!arr.length)return '';
+    return `<div class="sec-h">${title} — ${arr.length}</div>${note?`<p class="note" style="margin:-4px 0 8px">${note}</p>`:''}`+
+      arr.map((d,i)=>`<div class="fix-row ${cls}">
+        <div><div class="t">${esc(d.txt)}</div><div class="d">${d.det}</div></div>
+        ${d.type.startsWith('fix_bx')?`<button class="fix-btn" data-fix="${diffs.indexOf(d)}">Исправить в Битриксе</button>`:
+          d.type.startsWith('fix_gs')?`<button class="fix-btn ghost" data-copy="${diffs.indexOf(d)}">Скопировать</button>`:''}
+      </div>`).join('');
+  };
+  box.innerHTML=junk+
+    grp(['fix_bx_sum','fix_bx_resp'],'Исправить в Битриксе по Google','bx','Google-касса — источник правды по суммам и продавцу. Консультации 3 000 ₽ не трогаем.')+
+    grp(['fix_gs_name','fix_gs_resp'],'Исправить в Google по Битриксу','gs','Имена клиентов и продавец консультаций — источник правды Битрикс.')+
+    grp(['no_bitrix'],'Нет счёта в Битриксе','')+
+    grp(['no_google'],'Нет строки в Google-кассе','');
+  box.querySelectorAll('[data-fix]').forEach(b=>b.onclick=()=>applyFix(+b.dataset.fix,b));
+  box.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{
+    const d=diffs[+b.dataset.copy];
+    navigator.clipboard?.writeText(d.type==='fix_gs_name'?(d.b.title||'').trim():nm(d.b.assignedById));
+    b.textContent='Скопировано';b.classList.add('done');
+  });
+}
+async function applyFix(i,btn){
+  const d=diffs[i];if(!d||!d.b)return;
+  btn.disabled=true;btn.textContent='Сохраняю…';
+  const fields={};
+  if(d.type==='fix_bx_sum')fields.opportunity=d.newSum;
+  if(d.type==='fix_bx_resp')fields.assignedById=d.newResp;
+  try{
+    await bx('crm.item.update',{entityTypeId:INV,id:d.b.id,fields});
+    btn.textContent='Готово ✓';btn.classList.add('done');
+    setTimeout(()=>tick(),1500);
+  }catch(e){btn.disabled=false;btn.textContent='Ошибка: '+e.message.slice(0,25)}
+}
+
+/* ── Первая линия ── */
+function renderLeadFunnel(leads){
+  const from=new Date(fromISO());
+  const L=leads.filter(l=>new Date(l.DATE_CREATE)>=from);
+  const byStage={},byOp={};
+  L.forEach(l=>{
+    byStage[l.STATUS_ID]=(byStage[l.STATUS_ID]||0)+1;
+    const o=byOp[l.ASSIGNED_BY_ID]||= {total:0,conv:0,junk:0,work:0};
+    o.total++;
+    if(l.STATUS_SEMANTIC_ID==='S')o.conv++;
+    else if(l.STATUS_SEMANTIC_ID==='F')o.junk++;
+    else o.work++;
+  });
+  const total=L.length||1;
+  const funnel=LEAD_STAGES.filter(st=>byStage[st.id]).map(st=>{
+    const n=byStage[st.id];
+    return `<div class="lawrow ${st.id==='CONVERTED'?'okk':(['JUNK','2','10','11'].includes(st.id)?'over':'')}" style="grid-template-columns:minmax(150px,1.4fr) 60px 1fr 60px">
+      <div class="nm"><span>${st.n}</span></div>
+      <div class="n">${n}</div>
+      <div class="loadbar"><i class="${['JUNK','2','10','11'].includes(st.id)?'over':''}" style="width:${Math.round(n/total*100)}%"></i></div>
+      <div class="n">${Math.round(n/total*100)}%</div></div>`}).join('');
+  const flIds=idsOfRole('first');
+  const ops=Object.keys(byOp).filter(id=>flIds.has(String(id))).map(id=>({id,...byOp[id],cv:byOp[id].total?Math.round(byOp[id].conv/byOp[id].total*100):0}))
+    .sort((a,b)=>b.total-a.total);
+  return `<div class="sec-h">Лиды за ${monthLabel()} — ${L.length} шт., по стадиям</div>
+    <div style="display:grid;gap:4px;margin-bottom:6px">${funnel||'<div class="empty">Лидов за период нет.</div>'}</div>
+    <div class="sec-h">Кто как отрабатывает лиды</div>
+    <div class="grid">${ops.map(o=>`<div class="card ${o.cv<15&&o.total>5?'help':''}">
+      <div class="card-top">${ava(o.id,'📥')}<div class="who"><div class="name">${esc(nm(o.id))}</div><div class="deals">${o.total} лидов</div></div></div>
+      <div class="money3">
+        <div class="m3"><div class="l">В работе</div><div class="v">${o.work}</div></div>
+        <div class="m3"><div class="l">Качественных</div><div class="v green">${o.conv}</div></div>
+        <div class="m3"><div class="l">Слил</div><div class="v" style="color:var(--red)">${o.junk}</div></div>
+      </div>
+      <div class="pct-row"><span class="pct">${o.cv}% в качественные</span></div>
+    </div>`).join('')}</div>`;
+}
+
+function renderFirst(allDealsMonth,paidAll,leads){
+  const from=new Date(fromISO());
+  const deals=allDealsMonth.filter(d=>new Date(d.DATE_CREATE)>=from);
+  /* Отдельно консультации, отдельно договоры.
+     Раньше складывались все счета сделки, и клиент, оплативший
+     консультацию 3 000 плюс договор 50 000, шёл как «консультация у Валентина». */
+  const paidByDeal={}, consByDeal={};
+  paidAll.forEach(i=>{
+    if(!i.parentId2)return;
+    const k=String(i.parentId2), v=+i.opportunity||0;
+    paidByDeal[k]=(paidByDeal[k]||0)+v;
+    if(CONSULT_SUMS.includes(Math.round(v)))consByDeal[k]=Math.max(consByDeal[k]||0,v);
+  });
+
+  /* ПРИВЁЛ = CREATED_BY_ID (фиксируется при переводе лида в сделку, не меняется) */
+  const led={}, cons={};
+  deals.forEach(d=>{
+    const bringer=d.CREATED_BY_ID, lawyer=d.ASSIGNED_BY_ID;
+    const paid=consByDeal[String(d.ID)]||0;          /* только консультация */
+    const contract=paidByDeal[String(d.ID)]||0;       /* всё вместе, для договоров */
+    const held=HELD_STAGES.includes(d.STAGE_ID)||d.STAGE_SEMANTIC_ID!=='P';
+    const won=d.STAGE_SEMANTIC_ID==='S';
+    const a=led[bringer]||= {leads:0,held:0,paid:0,free:0,val:0,adv:0,office:0,bad:0,unsure:0,
+      days:{},dogDays:{},won:0,sumOk:0,wonVal:0,ripe:0,pend:0,ripeVal:0,pendVal:0,sum:0,
+      consBall:0,dogBall:0,pendBall:0};
+    a.leads++;
+    const f=fmtOf(d,paid);
+    if(held){
+      a.held++;
+      if(!f.sure)a.unsure++;
+      const day=String(d.DATE_CREATE||'').slice(0,10);
+      const b=R.flBall[f.k]||0;
+      a.days[day]=(a.days[day]||0)+b;
+      a.consBall+=b;
+      if(f.k==='val')a.val++;
+      else if(f.k==='adv')a.adv++;
+      else if(f.k==='paid')a.paid++;
+      else if(f.k==='office')a.office++;
+      else if(f.k==='bad')a.bad++;      /* правилами не разрешено, балла нет */
+      else a.free++;
+    }
+    if(won){a.won++;const v=+d.OPPORTUNITY||0;a.sum+=v;
+      if(v>=R.minCheck)a.sumOk=(a.sumOk||0)+v;
+      /* Договор в баллах. Подтверждается через 30 дней после подписания:
+         до срока баллы показываем отдельно и в выплату не берём. */
+      const db=dogBall(v,f.k==='val');
+      const ripe=d.CLOSEDATE&&(Date.now()-new Date(d.CLOSEDATE))>=R.flDays*86400000;
+      if(db){
+        if(ripe){
+          const dday=String(d.CLOSEDATE||d.DATE_CREATE||'').slice(0,10);
+          a.dogDays[dday]=(a.dogDays[dday]||0)+db;
+          a.dogBall+=db;
+        } else a.pendBall+=db;
+      }
+      if(f.k==='val'){a.wonVal++; if(ripe)a.ripeVal++; else a.pendVal++}
+      else {if(ripe)a.ripe++; else a.pend++}}
+    /* КОНСУЛЬТИРОВАЛ = текущий ответственный, если он не совпадает с приведшим */
+    if(String(lawyer)!==String(bringer)&&held){
+      const c=cons[lawyer]||= {cnt:0,won:0,sum:0};
+      c.cnt++; if(won){c.won++;c.sum+=+d.OPPORTUNITY||0}
+    }
+  });
+
+  const firstIds=idsOfRole('first');
+  /* Роль — не клетка. Мотивацию первой линии получает тот, кто записал клиента,
+     кем бы он ни числился. Штатные идут наверху, совместители — отдельным блоком. */
+  const calc=id=>{const a=led[id];
+    /* ШАГ 1. Ставка за балл — по сумме всех баллов периода,
+       включая договорные: закрытые договоры поднимают цену каждой консультации. */
+    const totalBall=a.consBall+a.dogBall;
+    const rate=ballRate(totalBall);
+
+    /* ШАГ 2. Каждый день считается отдельно и сравнивается с гарантом.
+       Гарант защищает день целиком, а не отдельный вид работы. */
+    const workDays=Object.keys(a.days).length;
+    const shifts=Math.max(+((cfg.shifts||{})[id])||0, workDays);
+    const dayBall={};
+    Object.keys(a.days).forEach(d=>dayBall[d]=a.days[d]);
+    Object.keys(a.dogDays).forEach(d=>dayBall[d]=(dayBall[d]||0)+a.dogDays[d]);
+
+    let dayPay=0, over=0, offShift=0;
+    Object.keys(dayBall).forEach(d=>{
+      const money=Math.round(dayBall[d]*rate);
+      if(a.days[d]!==undefined){                    /* в этот день была смена */
+        dayPay+=Math.max(R.flShift,money);
+        if(money>R.flShift)over++;
+      } else offShift+=money;                       /* договор подписан в нерабочий день — без гаранта */
+    });
+    dayPay+=Math.max(0,shifts-workDays)*R.flShift;  /* пустые смены — по гаранту */
+
+    const earned=Math.round(a.consBall*rate);       /* сколько дали консультации сами по себе */
+    const dogPay=Math.round(a.dogBall*rate);
+    const pendPay=Math.round(a.pendBall*rate);      /* ждёт подтверждения 30 дней */
+    const pay=dayPay+offShift;
+    return {id,...a,doh:a.leads?Math.round(a.held/a.leads*100):0,cv:a.held?Math.round(a.won/a.held*100):0,
+      shifts,workDays,earned,dayPay,over,pay,totalBall,rate,dogPay,pendPay,offShift,
+      avg:workDays?Math.round(a.held/workDays*10)/10:0}};
+  const byPay=(x,y)=>y.pay-x.pay;
+  const rows=Object.keys(led).filter(id=>firstIds.has(String(id))).map(calc).sort(byPay);
+  /* Записывал, но в первой линии не числится */
+  const extra=Object.keys(led).filter(id=>!firstIds.has(String(id))&&led[id].held>0)
+    .map(calc).sort(byPay);
+  const crows=Object.keys(cons).map(id=>{const c=cons[id];
+    const fee=c.cnt*(cfg.lawConsult||500);            /* ставка за проведённую консультацию */
+    const pct=Math.round(c.sum*0.10);                  /* 10% с договора, который он закрыл */
+    return {id,...c,cv:c.cnt?Math.round(c.won/c.cnt*100):0,fee,pct,earn:fee+pct}})
+    .sort((x,y)=>y.earn-x.earn);
+  const T=rows.reduce((a,r)=>({leads:a.leads+r.leads,held:a.held+r.held,paid:a.paid+r.paid,free:a.free+r.free,won:a.won+r.won}),{leads:0,held:0,paid:0,free:0,won:0});
+
+  $('#firstBody').innerHTML=(leads?renderLeadFunnel(leads):'')+`
+  <div class="sec-h">Первая линия · ${monthLabel()} — ${T.leads} лидов → ${T.held} состоявшихся консультаций (${T.paid} платных, ${T.free} бесплатных) → ${T.won} договоров</div>
+  <div class="grid">${rows.map((r,i)=>`<div class="card ${i===0?'leader':''}">
+    <div class="card-top">${ava(r.id,'📞')}<div class="who"><div class="name">${esc(nm(r.id))}</div><div class="deals">привёл клиентов</div></div></div>
+    <div class="money3">
+      <div class="m3"><div class="l">Лидов→сделок</div><div class="v gold">${r.leads}</div></div>
+      <div class="m3"><div class="l">Консультаций</div><div class="v">${r.held}</div></div>
+      <div class="m3"><div class="l">Доходимость</div><div class="v ${r.doh>=70?'green':'mut'}">${r.doh}%</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini">Баллы: консульт. + договоры<b class="gold">${r.consBall} + ${Math.round(r.dogBall*10)/10} = ${Math.round(r.totalBall*10)/10}</b></div>
+      <div class="mini">Ставка за балл<b class="${r.rate>=1300?'ok':r.rate>=1000?'gold':'warn'}">${fmt(r.rate)}</b></div>
+      <div class="mini">Валентин · адвокат · платных<b class="gold">${r.val} · ${r.adv} · ${r.paid}</b></div>
+      <div class="mini">Офис 15 мин · бесплатных<b>${r.office} · ${r.free}</b></div>
+      <div class="mini">Смен · консультаций в день<b class="${r.avg>=2?'ok':'warn'}">${r.shifts} · ${r.avg}</b></div>
+      <div class="mini">Дней выше гаранта<b class="${r.over?'ok':'warn'}">${r.over} из ${r.workDays}</b></div>
+      <div class="mini">За договоры (подтверждённые)<b class="gold">${fmt(r.dogPay)}</b></div>
+      ${r.pendBall?`<div class="mini">Ждут 30 дней<b class="warn">${Math.round(r.pendBall*10)/10} б · ${fmt(r.pendPay)}</b></div>`:''}
+      ${r.bad?`<div class="mini">Дистанц. бесплатно без услуги<b class="warn">${r.bad} — балла нет</b></div>`:''}
+      ${r.unsure?`<div class="mini">Формат не указан в карточке<b class="warn">${r.unsure}</b></div>`:''}
+    </div>
+    <div class="fact-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Заработал за ${monthLabel()}</span>
+      <span class="num" style="font-weight:700;font-size:19px;color:var(--green)">${fmt(r.pay)}</span>
+    </div></div>`).join('')||'<div class="empty">Нет данных за период.</div>'}</div>
+  ${extra.length?`
+  <div class="sec-h">Записывали на консультации, хотя в первой линии не числятся · ${monthLabel()}</div>
+  <div class="grid">${extra.map(r=>`<div class="card">
+    <div class="card-top">${ava(r.id,'📞')}<div class="who"><div class="name">${esc(nm(r.id))}</div><div class="deals">${ROLE_NAMES[roleOf(r.id)]||'без роли'} · записывал</div></div></div>
+    <div class="money3">
+      <div class="m3"><div class="l">Лидов→сделок</div><div class="v gold">${r.leads}</div></div>
+      <div class="m3"><div class="l">Консультаций</div><div class="v">${r.held}</div></div>
+      <div class="m3"><div class="l">Доходимость</div><div class="v ${r.doh>=70?'green':'mut'}">${r.doh}%</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini">Баллов всего<b class="gold">${Math.round(r.totalBall*10)/10}</b></div>
+      <div class="mini">Ставка за балл<b>${fmt(r.rate)}</b></div>
+      <div class="mini">За консультации<b class="ok">${fmt(r.earned)}</b></div>
+      <div class="mini">За договоры<b class="gold">${fmt(r.dogPay)}</b></div>
+      ${r.bad?`<div class="mini">Без услуги дистанционно<b class="warn">${r.bad}</b></div>`:''}
+    </div>
+    <div class="fact-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">К доплате как первой линии</span>
+      <span class="num" style="font-weight:700;font-size:19px;color:var(--green)">${fmt(r.earned+r.dogPay)}</span>
+    </div></div>`).join('')}</div>
+  <p class="note">Смены здесь не считаются — эти люди работают на других участках, а за запись клиента получают отдельно: ставку за консультацию и 3 % от приведённых договоров. Гарантированный минимум за смену им не полагается.</p>`:''}
+  <div class="sec-h">Кто консультировал — принял клиента от первой линии</div>
+  <div class="grid">${crows.map(r=>`<div class="card">
+    <div class="card-top">${ava(r.id,'⚖️')}<div class="who"><div class="name">${esc(nm(r.id))}</div><div class="deals">консультировал</div></div></div>
+    <div class="money3">
+      <div class="m3"><div class="l">Консультаций</div><div class="v gold">${r.cnt}</div></div>
+      <div class="m3"><div class="l">Договоров</div><div class="v green">${r.won}</div></div>
+      <div class="m3"><div class="l">Конверсия</div><div class="v ${r.cv>=30?'green':'mut'}">${r.cv}%</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini">Выручка договоров<b class="ok">${fmt(r.sum)}</b></div>
+      <div class="mini">Средний чек<b>${r.won?fmt(Math.round(r.sum/r.won)):'—'}</b></div>
+      <div class="mini">За консультации<b class="gold">${fmt(r.fee)}</b></div>
+      <div class="mini">10% с договоров<b class="gold">${fmt(r.pct)}</b></div>
+    </div>
+    <div class="fact-row" style="margin-top:9px;padding-top:9px;border-top:1px solid var(--line)">
+      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Заработал</span>
+      <span class="num" style="font-weight:700;font-size:18px;color:var(--green)">${fmt(r.earn)}</span>
+    </div>
+  </div>`).join('')||'<div class="empty">Передач юристам за период нет.</div>'}</div>
+  <p class="note">Балл за консультацию — по формату, не по сумме: Валентин 3, адвокат 1,5, платная 1, офис 15 минут первично 0,5, дистанционно по конкретной услуге 0,5, бесплатная по направлению 0,5. Дистанционная бесплатная без записи на услугу правилами не разрешена и балла не даёт. Договор превращается в баллы: сумма делить на сто тысяч, но не меньше балла (через Валентина не меньше 2,5), ниже 40 тыс. не в зачёт, потолок 10 баллов; засчитывается через 30 дней после подписания. Ставка за балл — по всем баллам периода: до 20 — 700 ₽, 21–35 — 1 000 ₽, от 36 — 1 300 ₽; договоры поднимают ступень и удорожают каждую консультацию задним числом. Каждый день считается отдельно: платится большее из 2 000 ₽ и заработанного за день. Договор, подписанный в нерабочий день, идёт без гаранта. Консультация засчитывается, только если клиент пришёл — стадия «Встреча состоялась» и дальше. «Привёл» — кто перевёл лид в сделку, поле не слетает, когда юрист ставит себя ответственным. Одна консультация кормит двоих намеренно: первой линии балл за запись, юристу — ставка за проведение плюс 10 % с договора.</p>`;
+}
+
+/* ── Продажи ── */
+function renderSales(won,lost,paid,created){
+  const agg={},t=id=>agg[id]||= {soldSum:0,soldCnt:0,okSum:0,okCnt:0,lowCnt:0,lost:0,billed:0,cash:0,cashCnt:0};
+  won.forEach(d=>{const a=t(d.ASSIGNED_BY_ID);const v=+d.OPPORTUNITY||0;a.soldSum+=v;a.soldCnt++;
+    if(v>=R.minCheck){a.okSum+=v;a.okCnt++}else{a.lowCnt++}});
+  lost.forEach(d=>t(d.ASSIGNED_BY_ID).lost++);
+  created.forEach(i=>t(i.assignedById).billed+=+i.opportunity||0);
+  paid.forEach(i=>{const a=t(i.assignedById);a.cash+=+i.opportunity||0;a.cashCnt++});
+  const salesIds=idsOfRole('sales');
+  salesIds.forEach(id=>t(id));   /* карточка есть у каждого продажника, даже с нулём */
+  const all=Object.keys(agg).map(id=>{const a=agg[id];
+    /* Ставки: 12 % от собранного по договорам от 40 000, потолок 16 % от собранного лично, гарант 30 000 */
+    const pctPay=Math.round(a.cash*R.sPct);
+    const capPay=Math.round(a.cash*R.sCap);
+    const earn=Math.min(pctPay,capPay);
+    const pay=Math.max(R.sGuar,earn);
+    return {id,...a,pctPay,earn,pay,guarOn:earn<R.sGuar,
+      conv:(a.soldCnt+a.lost)>0?Math.round(a.soldCnt/(a.soldCnt+a.lost)*100):null,plan:+cfg.cashPlans[id]||0}})
+    .sort((x,y)=>y.cash-x.cash);
+  const rows=all.filter(r=>salesIds.has(String(r.id)));
+  /* деньги тех, кто не в продажах, не теряем — показываем строкой ниже */
+  const others=all.filter(r=>!salesIds.has(String(r.id))&&(r.cash>0||r.soldSum>0));
+  $('#gridSales').innerHTML=rows.map((r,i)=>{
+    const pct=r.plan?Math.min(100,r.cash/r.plan*100):null;
+    return `<div class="card ${i===0&&r.cash>0?'leader':''}">
+      <div class="card-top">${ava(r.id,'🧑‍💼')}<div class="who"><div class="name">${esc(nm(r.id))}</div><div class="deals">${r.soldCnt} догов. · ${r.cashCnt} оплат</div></div></div>
+      <div class="money3">
+        <div class="m3"><div class="l">Продано</div><div class="v mut">${fmt(r.soldSum)}</div></div>
+        <div class="m3"><div class="l">Выставлено</div><div class="v gold">${fmt(r.billed)}</div></div>
+        <div class="m3"><div class="l">В кассе</div><div class="v green">${fmt(r.cash)}</div></div>
+      </div>
+      ${r.plan?`<div class="bar"><i class="${pct>=100?'done':''}" style="width:${pct}%"></i></div><div class="pct-row"><span class="pct">${Math.round(pct)}%</span><span style="color:var(--muted)">план ${fmt(r.plan)}</span></div>`:''}
+      <div class="mini-stats">
+        <div class="mini">Конверсия<b class="${r.conv!==null&&r.conv<30?'warn':''}">${r.conv===null?'—':r.conv+'%'}</b></div>
+        <div class="mini">Разрыв продано−касса<b class="${r.soldSum-r.cash>0?'gold':'ok'}">${fmt(Math.max(0,r.soldSum-r.cash))}</b></div>
+        <div class="mini">Договоров ниже 40 тыс.<b class="${r.lowCnt?'warn':'ok'}">${r.lowCnt}</b></div>
+        <div class="mini">12 % от кассы<b>${fmt(r.pctPay)}</b></div>
+      </div>
+      <div class="fact-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+        <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">К выплате${r.guarOn?' · гарант':''}</span>
+        <span class="num" style="font-weight:700;font-size:19px;color:var(--green)">${fmt(r.pay)}</span>
+      </div></div>`}).join('')||'<div class="empty">В продажах никого нет. Откройте ⚙ и распределите сотрудников.</div>';
+  const ob=$('#salesOthers');
+  if(ob)ob.innerHTML=others.length?`<div class="sec-h">Не в продажах, но есть деньги за ${monthLabel()} — ${fmt(others.reduce((s2,r)=>s2+r.cash,0))}</div>
+    ${others.map(r=>`<div class="fix-row bx"><div><div class="t">${esc(nm(r.id))}</div>
+      <div class="d">${ROLE_NAMES[roleOf(r.id)]} · ${r.cashCnt} оплат</div></div>
+      <div class="num" style="font-weight:700;color:var(--blue)">${fmt(r.cash)}</div></div>`).join('')}`:'';
+  renderPlans('cashPlans',rows.map(r=>r.id),cfg.cashPlans,'План кассы, ₽');
+}
+
+/* ── Касса и дебиторка по направлениям ── */
+function dirOf(deal){
+  if(!deal)return 'legal';
+  if(String(deal.CATEGORY_ID)==='1')return 'bfl';
+  const t=(deal.TITLE||'').toLowerCase();
+  if(/бфл|банкрот/.test(t))return 'bfl';
+  if(/миграц|патент|рвп|внж|гражданств/.test(t))return 'mig';
+  if(String(deal.CATEGORY_ID)==='7')return 'mig';
+  return 'legal';
+}
+function renderCash(paid,debt,dealMap){
+  const by={};paid.forEach(i=>by[i.assignedById]=(by[i.assignedById]||0)+(+i.opportunity||0));
+  const top=Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  const cash=paid.reduce((s,i)=>s+(+i.opportunity||0),0);
+  const ds=[...debt].sort((a,b)=>(+b.opportunity||0)-(+a.opportunity||0));
+  const dt=ds.reduce((s,i)=>s+(+i.opportunity||0),0);
+  /* дебиторка, возникшая внутри выбранного месяца */
+  const dsM=ds.filter(i=>(i.movedTime||'')>=monthStart()&&(i.movedTime||'')<=monthEnd());
+  const dtM=dsM.reduce((s,i)=>s+(+i.opportunity||0),0);
+  const debtBy={};dsM.forEach(i=>debtBy[i.assignedById]=(debtBy[i.assignedById]||0)+(+i.opportunity||0));
+  const debtRows=Object.entries(debtBy).sort((a,b)=>b[1]-a[1]);
+
+  /* Вся дебиторка по людям: свои счета плюс унаследованные от уволенных */
+  const own={};
+  ds.forEach(i=>{
+    const o=debtOwner(i.assignedById);
+    const a=own[o]||= {sum:0,cnt:0,inh:0,inhCnt:0,collected:0};
+    const v=+i.opportunity||0;
+    a.sum+=v; a.cnt++;
+    if(isInherited(i.assignedById)){a.inh+=v;a.inhCnt++}
+  });
+  paid.filter(i=>(i.movedTime||'')>=monthStart()).forEach(i=>{
+    const o=debtOwner(i.assignedById);
+    (own[o]||= {sum:0,cnt:0,inh:0,inhCnt:0,collected:0}).collected+=(+i.opportunity||0);
+  });
+  const ownRows=Object.entries(own).sort((a,b)=>b[1].sum-a[1].sum);
+  /* дебиторка по направлениям */
+  const dd={bfl:0,mig:0,legal:0},dc={bfl:0,mig:0,legal:0};
+  ds.forEach(i=>{const k=dirOf(dealMap[String(i.parentId2)]);dd[k]+=(+i.opportunity||0);dc[k]++});
+  /* собрано за период по направлениям */
+  const col={bfl:0,mig:0,legal:0};
+  paid.forEach(i=>{col[dirOf(dealMap[String(i.parentId2)])]+=(+i.opportunity||0)});
+
+  $('#cashBody').innerHTML=`<div class="sec-h">Продал — ${fmt(cash)} (по ответственному за счёт в Битриксе)</div>
+  <div class="grid">${top.map(([id,s2],i)=>`<div class="card ${i===0?'leader':''}">
+    <div class="card-top">${ava(id,'💰')}<div class="who"><div class="name">${esc(nm(id))}</div><div class="deals">ответственный за счёт</div></div></div>
+    <div class="num" style="font-weight:700;font-size:21px;color:var(--green)">${fmt(s2)}</div></div>`).join('')}</div>
+
+  ${renderManager(col)}
+  <div class="sec-h">Дебиторка по направлениям — выставлено, собрано, осталось</div>
+  <div class="grid">${DIRS.map(d=>{
+    /* План никто не задаёт руками: план — это то, что выставлено счетами. */
+    const fact=col[d.k], debtD=dd[d.k], billedD=fact+debtD;
+    const pct=billedD?Math.min(100,fact/billedD*100):null;
+    return `<div class="card ${pct!==null&&pct<50?'help':''}">
+      <div class="card-top"><div class="ava">${d.k==='bfl'?'⚖️':d.k==='mig'?'🌍':'📋'}</div>
+        <div class="who"><div class="name">${d.t}</div><div class="deals">${dc[d.k]} неоплаченных счетов</div></div></div>
+      <div class="money3">
+        <div class="m3"><div class="l">Выставлено</div><div class="v gold">${fmt(billedD)}</div></div>
+        <div class="m3"><div class="l">Собрано</div><div class="v green">${fmt(fact)}</div></div>
+        <div class="m3"><div class="l">Осталось</div><div class="v" style="color:var(--red)">${fmt(debtD)}</div></div>
+      </div>
+      ${pct!==null?`<div class="bar"><i class="${pct>=100?'done':''}" style="width:${pct}%"></i></div>
+      <div class="pct-row"><span class="pct">${Math.round(pct)}%</span><span style="color:var(--muted)">собрано от выставленного</span></div>`:'<p class="note">За период счетов не выставляли.</p>'}
+    </div>`}).join('')}</div>
+
+  <div class="sec-h">Дебиторка по сотрудникам — кто сколько должен собрать</div>
+  <div class="grid">${ownRows.map(([id,a])=>{
+    const pct=(a.sum+a.collected)?Math.round(a.collected/(a.sum+a.collected)*100):0;
+    return `<div class="card ${a.sum>200000?'help':''}">
+    <div class="card-top">${ava(id,'⏳')}<div class="who"><div class="name">${esc(nm(id))}</div>
+      <div class="deals">${a.cnt} неоплаченных счетов${a.inhCnt?` · из них ${a.inhCnt} от ушедших`:''}</div></div></div>
+    <div class="money3">
+      <div class="m3"><div class="l">Висит</div><div class="v" style="color:var(--red)">${fmt(a.sum)}</div></div>
+      <div class="m3"><div class="l">Собрал за период</div><div class="v green">${fmt(a.collected)}</div></div>
+      <div class="m3"><div class="l">Собрано</div><div class="v ${pct>=70?'green':'gold'}">${pct}%</div></div>
+    </div>
+    ${a.inh?`<p class="note" style="margin-top:8px">Перешло от уволенных — ${fmt(a.inh)}. Раздайте дела действующим юристам.</p>`:''}
+  </div>`}).join('')||'<div class="empty">Неоплаченных счетов нет 🎉</div>'}</div>
+
+  <div class="sec-h" style="color:var(--red)">Все просроченные счета, накопленным итогом — ${fmt(dt)} (${ds.length} шт.)</div>
+  ${ds.slice(0,20).map(i=>{const k=dirOf(dealMap[String(i.parentId2)]);
+    return `<div class="fix-row bx"><div><div class="t">${esc(invName(i,dealMap))}</div>
+    <div class="d">${isInherited(i.assignedById)
+      ? esc(nm(i.assignedById))+' (ушёл) → '+esc(nm(debtOwner(i.assignedById)))
+      : esc(nm(i.assignedById))} · ${DIRS.find(x=>x.k===k).t}${i.parentId2?'':' · ⚠ без сделки'}</div></div>
+    <div class="num" style="color:var(--red);font-weight:700">${fmt(+i.opportunity||0)}</div></div>`}).join('')||'<div class="empty">Просрочек нет 🎉</div>'}`;
+}
+
+/* ── Линия: телефония в реальном времени ── */
+const hhmm=sec=>{const h=Math.floor(sec/3600),m=Math.round(sec%3600/60);return h?`${h} ч ${m} м`:`${m} м`};
+const mmss=sec=>`${Math.floor(sec/60)}:${String(Math.round(sec%60)).padStart(2,'0')}`;
+function renderLine(calls){
+  const now=new Date();
+  const dayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const wd=(now.getDay()+6)%7;
+  const weekStart=new Date(dayStart); weekStart.setDate(dayStart.getDate()-wd);
+  const agg={};
+  calls.forEach(c=>{
+    const id=c.PORTAL_USER_ID, d=new Date(c.CALL_START_DATE), dur=+c.CALL_DURATION||0;
+    const ok=String(c.CALL_FAILED_CODE)==='200';
+    const a=agg[id]||= {dToday:0,dWeek:0,nToday:0,nWeek:0,okToday:0,inC:0,outC:0,talkToday:0,last:null,leads:new Set()};
+    if(d>=weekStart){a.dWeek+=dur;a.nWeek++;}
+    if(d>=dayStart){
+      a.dToday+=dur;a.nToday++;
+      if(ok){a.okToday++;a.talkToday+=dur}
+      if(String(c.CALL_TYPE)==='2')a.inC++;else a.outC++;
+      if(c.CRM_ENTITY_TYPE==='LEAD'&&c.CRM_ENTITY_ID)a.leads.add(c.CRM_ENTITY_ID);
+      if(!a.last||d>a.last)a.last=d;
+    }
+  });
+  const rows=Object.keys(agg).map(id=>{const a=agg[id];
+    return {id,...a,avg:a.okToday?a.talkToday/a.okToday:0,reach:a.nToday?Math.round(a.okToday/a.nToday*100):0,
+      idle:a.last?Math.round((now-a.last)/60000):null}})
+    .sort((x,y)=>y.dToday-x.dToday);
+  const T=rows.reduce((a,r)=>({d:a.d+r.dToday,n:a.n+r.nToday}),{d:0,n:0});
+  $('#lineBody').innerHTML=`
+  <div class="sec-h">Сегодня на линии — ${hhmm(T.d)} суммарно, ${T.n} звонков · обновляется каждые ${cfg.poll} сек</div>
+  <div class="grid">${rows.map((r,i)=>{
+    const cold=r.idle!==null&&r.idle>60;
+    return `<div class="card ${i===0&&r.dToday?'leader':''} ${cold?'help':''}">
+      <div class="card-top">${ava(r.id,'🎧')}<div class="who"><div class="name">${esc(nm(r.id))}</div>
+        <div class="deals">${r.last?('последний звонок '+(r.idle<1?'только что':r.idle+' мин назад')):'сегодня не звонил'}</div></div></div>
+      <div class="money3">
+        <div class="m3"><div class="l">На линии сегодня</div><div class="v green">${hhmm(r.dToday)}</div></div>
+        <div class="m3"><div class="l">За неделю</div><div class="v gold">${hhmm(r.dWeek)}</div></div>
+        <div class="m3"><div class="l">Средний звонок</div><div class="v">${r.avg?mmss(r.avg):'—'}</div></div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini">Звонков сегодня · неделя<b>${r.nToday} · ${r.nWeek}</b></div>
+        <div class="mini">Входящие · исходящие<b>${r.inC} · ${r.outC}</b></div>
+        <div class="mini">Дозвон<b class="${r.reach>=60?'ok':'warn'}">${r.reach}%</b></div>
+        <div class="mini">Лидов в работе<b class="gold">${r.leads.size}</b></div>
+      </div></div>`}).join('')||'<div class="empty">Звонков за период нет.</div>'}</div>
+  <p class="note">«На линии» — суммарная длительность всех соединений, включая недозвоны. «Дозвон» — доля состоявшихся разговоров. Красным подсвечен оператор, не звонивший больше часа.</p>`;
+}
+
+/* ── После победы: поздравили ли и предложили ли партнёрку ── */
+function renderAfter(wonDeals,calls,partnerContacts){
+  /* блок живёт внутри вкладки «Партнёрка» */
+  const now=Date.now();
+  const byContact={};
+  calls.forEach(c=>{ if(c.CRM_ENTITY_TYPE==='CONTACT'&&c.CRM_ENTITY_ID){
+    (byContact[c.CRM_ENTITY_ID]||=[]).push({d:new Date(c.CALL_START_DATE),dur:+c.CALL_DURATION||0,ok:String(c.CALL_FAILED_CODE)==='200'})}});
+  const rows=wonDeals.filter(d=>d.CLOSEDATE).map(d=>{
+    const closed=new Date(d.CLOSEDATE);
+    const days=Math.floor((now-closed)/86400000);
+    const cid=String(d.CONTACT_ID||'');
+    const after=(byContact[cid]||[]).filter(c=>c.d>=closed&&c.ok&&c.dur>=30);
+    const called=after.length>0;
+    const partner=partnerContacts.has(cid);
+    return {d,days,called,callDur:called?after[0].dur:0,partner,cid};
+  }).sort((a,b)=>a.days-b.days);
+  const done=rows.filter(r=>r.called).length, part=rows.filter(r=>r.partner).length;
+  $('#afterBody').innerHTML=`
+  <div class="sec-h">Выигранные дела — поздравили ${done} из ${rows.length}, партнёрку предложили ${part}</div>
+  ${rows.map(r=>{
+    const late=!r.called&&r.days>=2;
+    return `<div class="fix-row ${late?'bx':(r.called?'gs':'')}">
+      <div style="min-width:0">
+        <div class="t">${esc((r.d.TITLE||'').trim()||'#'+r.d.ID)}</div>
+        <div class="d">${esc(nm(r.d.ASSIGNED_BY_ID))} · выиграно ${r.days===0?'сегодня':r.days+' дн. назад'}${r.cid?'':' · контакт не привязан'}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;white-space:nowrap">
+        <span class="mini" style="text-align:center">Звонок<b class="${r.called?'ok':'warn'}">${r.called?mmss(r.callDur):'нет'}</b></span>
+        <span class="mini" style="text-align:center">Партнёрка<b class="${r.partner?'ok':'warn'}">${r.partner?'да':'нет'}</b></span>
+      </div></div>`}).join('')||'<div class="empty">Выигранных дел за период нет.</div>'}
+  <p class="note">Поздравлением считается состоявшийся разговор дольше 30 секунд с контактом клиента после даты закрытия дела. Партнёрка — наличие карточки этого клиента в воронке «Продажа партнёрки». Красным — дела, где после победы прошло 2+ дня и никто не позвонил. Соответствие скрипту поздравления появится, когда анализ разговоров начнёт писать оценку в Битрикс.</p>`;
+}
+
+/* ── Качество и ОКК ── */
+function renderOkk(allDealsMonth){
+  const from=new Date(fromISO());
+  const deals=allDealsMonth.filter(d=>new Date(d.DATE_CREATE)>=from);
+  const agg={};
+  deals.forEach(d=>{
+    const a=agg[d.CREATED_BY_ID]||= {leads:0,held:0,won:0,survey:0};
+    a.leads++;
+    if(HELD_STAGES.includes(d.STAGE_ID)||d.STAGE_SEMANTIC_ID!=='P')a.held++;
+    if(d.STAGE_SEMANTIC_ID==='S')a.won++;
+    if(d.UF_CRM_CALL_SURVEY_RESULT&&String(d.UF_CRM_CALL_SURVEY_RESULT).trim())a.survey++;
+  });
+  const rows=Object.keys(agg).map(id=>({id,...agg[id],okk:cfg.okk[id]||{}})).sort((x,y)=>y.leads-x.leads);
+  const anySurvey=rows.some(r=>r.survey>0);
+  renderVideoRows();
+  const ob=$('#okkInputs');
+  if(ob)ob.innerHTML=rows.map(r=>`<div class="mgr-row" style="grid-template-columns:1.2fr .8fr .8fr">
+    <span>${esc(nm(r.id))}</span>
+    <input type="number" data-okk="script:${r.id}" value="${(cfg.okk[r.id]||{}).script||''}" placeholder="% скрипт">
+    <input type="number" data-okk="quality:${r.id}" value="${(cfg.okk[r.id]||{}).quality||''}" placeholder="ОКК 0-10"></div>`).join('');
+  $('#okkBody').innerHTML=`
+  <div class="sec-h">Качество работы первой линии — не влияет на кассу, влияет на премию</div>
+  <div class="grid">${rows.map(r=>{
+    const script=+r.okk.script||0, quality=+r.okk.quality||0;
+    const bad=script&&script<70;
+    return `<div class="card ${bad?'help':''}">
+      <div class="card-top">${ava(r.id,'🎧')}<div class="who"><div class="name">${esc(nm(r.id))}</div><div class="deals">${r.leads} лидов · ${r.held} консультаций</div></div></div>
+      <div class="money3">
+        <div class="m3"><div class="l">По скрипту</div><div class="v ${script>=85?'green':script?'gold':'mut'}">${script?script+'%':'—'}</div></div>
+        <div class="m3"><div class="l">Оценка ОКК</div><div class="v ${quality>=8?'green':quality?'gold':'mut'}">${quality?quality+'/10':'—'}</div></div>
+        <div class="m3"><div class="l">Отзывов клиентов</div><div class="v">${r.survey||'—'}</div></div>
+      </div>
+      <div class="mini-stats">
+        <div class="mini">Доходимость<b class="${r.leads&&r.held/r.leads>=.7?'ok':''}">${r.leads?Math.round(r.held/r.leads*100):0}%</b></div>
+        <div class="mini">Конверсия в договор<b>${r.held?Math.round(r.won/r.held*100):0}%</b></div>
+      </div></div>`}).join('')||'<div class="empty">Нет данных.</div>'}</div>
+  <p class="note">${anySurvey?'Отзывы клиентов приходят по ссылке в поле UF_CRM_CALL_SURVEY_RESULT.':
+    '⚠️ Поле UF_CRM_CALL_SURVEY_RESULT пусто во всех сделках — ссылка «кто вас консультировал» до клиентов не доходит либо ответы падают в другое место. Стоит проверить.'}
+  Проценты по скрипту и оценки ОКК вводятся вручную в настройках, пока анализ разговоров не отдаёт их в Битрикс автоматически.</p>`;
+}
+
+/* ── Юристы: один экран ── */
+function renderLegal(wonB,actB,wonM,actM,cashByDeal){
+  const block=(title,won,act)=>{
+    const agg={},t=id=>agg[id]||= {won:0,act:0,stale:0,sum:0,wonSum:0};
+    won.forEach(d=>{const a=t(d.ASSIGNED_BY_ID);a.won++;a.wonSum+=cashByDeal[String(d.ID)]||0});
+    const cut=daysAgo(STALE);
+    act.forEach(d=>{const a=t(d.ASSIGNED_BY_ID);a.act++;a.sum+=cashByDeal[String(d.ID)]||0;if(d.MOVED_TIME&&d.MOVED_TIME<cut)a.stale++});
+    const rows=Object.keys(agg).map(id=>({id,...agg[id],plan:+cfg.legalPlans[id]||0})).sort((x,y)=>y.act-x.act);
+    const ta=rows.reduce((s,r)=>s+r.act,0),ts=rows.reduce((s,r)=>s+r.stale,0);
+    return `<div class="lawblock">
+      <div class="sec-h">${title} — ${ta} дел, зависло ${ts}</div>
+      <div class="lawrow head"><div>Юрист</div><div style="text-align:center">Дел</div><div>Загрузка</div><div style="text-align:center">Зависло</div><div style="text-align:center">Успешно</div><div style="text-align:center">Начислено ₽</div></div>
+      <div class="lawtable">${rows.map(r=>{
+        const over=r.act>cfg.maxLoad,hang=r.stale>=5;
+        const w=Math.min(100,r.act/cfg.maxLoad*100);
+        const clean=r.stale===0;
+        const pay=Math.round(r.sum*LAW.lead + r.wonSum*LAW.win + (clean?r.sum*LAW.clean:0));
+        return `<div class="lawrow ${over||hang?'over':(r.act?'okk':'')}">
+          <div class="nm">${ava(r.id,'⚖️',1)}<span>${esc(nm(r.id))}</span></div>
+          <div class="n ${over?'warn':''}">${r.act}</div>
+          <div class="loadbar"><i class="${over?'over':''}" style="width:${w}%"></i></div>
+          <div class="n ${hang?'warn':(r.stale?'gold':'ok')}">${r.stale}</div>
+          <div class="n ok">${r.won}</div>
+          <div class="n ${clean?'ok':'gold'}">${pay?fmt(pay).replace(' ₽',''):'—'}</div>
+        </div>`}).join('')||'<div class="empty">Нет дел.</div>'}</div></div>`;
+  };
+  $('#tabLegal').innerHTML=block('БФЛ Исполнение',wonB,actB)+block('Миграция и общий юр',wonM,actM)
+    +'<p class="note" style="margin-top:6px">Начислено = 15% за ведение + 10% за успешно завершённые + 5% за отсутствие просрочек (только при нуле зависших). Считается от <b>фактически оплаченных счетов</b> по делу за период, а не от сумм договоров — деньги, которые не пришли, в зарплату не идут.</p>';
+  renderPlans('legalPlans',[...new Set([...actB,...actM,...wonB,...wonM].map(d=>d.ASSIGNED_BY_ID))],cfg.legalPlans,'План дел');
+}
+
+/* ── Руководитель направления ──
+   50 % чистой прибыли минус ранее выданные авансы, но не меньше гаранта.
+   Чистую прибыль табло посчитать не может: она собирается на листе
+   «Сводка» с расходами и аллокацией, которых в Битриксе нет.
+   Поэтому число вводится руками, а табло считает долю и аванс. */
+function renderManager(collected){
+  const profit=+cfg.mgrProfit||0;
+  const adv=+cfg.mgrAdvance||0;
+  const share=Math.max(0,Math.round(profit*R.mgrShare));
+  const pay=Math.max(R.mgrGuarantee,share-adv);
+  const advEnd=Math.max(0,adv+pay-share);
+  const sbor=collected[R.mgrDir]||0;
+  const worked=share>=R.mgrGuarantee;
+
+  return `<div class="sec-h">Руководитель «Миграция» · ${monthLabel()}</div>
+  <div class="grid"><div class="card ${worked?'':'help'}">
+    <div class="card-top">${ava(R.mgrId,'👤')}<div class="who">
+      <div class="name">${esc(nm(R.mgrId))}</div>
+      <div class="deals">50 % чистой прибыли направления</div></div></div>
+    <div class="money3">
+      <div class="m3"><div class="l">Собрано по миграции</div><div class="v gold">${fmt(sbor)}</div></div>
+      <div class="m3"><div class="l">Чистая прибыль</div><div class="v ${profit?'green':'mut'}">${profit?fmt(profit):'—'}</div></div>
+      <div class="m3"><div class="l">Доля 50 %</div><div class="v">${fmt(share)}</div></div>
+    </div>
+    <div class="mini-stats">
+      <div class="mini">Аванс на начало месяца<b>${fmt(adv)}</b></div>
+      <div class="mini">Аванс на конец месяца<b class="${advEnd?'warn':'ok'}">${fmt(advEnd)}</b></div>
+    </div>
+    <div class="fact-row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">К выплате</span>
+      <span class="num" style="font-weight:700;font-size:21px;color:var(--green)">${fmt(pay)}</span>
+    </div>
+    ${profit
+      ? (worked
+          ? '<p class="note" style="margin-top:8px">Долю отработала: доля больше гаранта, аванс не растёт.</p>'
+          : `<p class="note" style="margin-top:8px">Доля меньше гаранта на ${fmt(R.mgrGuarantee-share)}. Разница уходит в аванс и гасится из будущей прибыли.</p>`)
+      : '<p class="note" style="margin-top:8px">Впишите чистую прибыль месяца в настройках (⚙) — она считается на листе «Сводка», в Битриксе этих данных нет.</p>'}
+  </div></div>
+  <p class="note">Схема действует только для миграции. По БФЛ отменена с августа 2026: за январь–июнь направление дало 102 676 ₽ прибыли при 600 000 ₽ выплаченных гарантов.</p>`;
+}
+
+/* ── Партнёрка ── */
+function renderPartner(deals){
+  const ms=monthStart();
+  const real=deals.filter(d=>!/test|тест/i.test(d.TITLE||''));
+  const act=real.filter(d=>d.STAGE_SEMANTIC_ID==='P');
+  const work=act.filter(d=>P_WORK.includes(d.STAGE_ID));
+  const sell=act.filter(d=>P_SALE.includes(d.STAGE_ID));
+  const idle=act.filter(d=>d.STAGE_ID==='C9:UC_QFQQGF');
+  const ref=real.filter(d=>d.STAGE_SEMANTIC_ID==='F');
+  const nw=real.filter(d=>d.DATE_CREATE>=ms);
+  const c={};real.forEach(d=>c[d.ASSIGNED_BY_ID]=(c[d.ASSIGNED_BY_ID]||0)+1);
+  const mgr=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  $('#gridPartner').innerHTML=`<div class="card ${nw.length===0?'help':''}">
+    <div class="card-top">${ava(mgr,'🤝')}<div class="who"><div class="name">${esc(nm(mgr))}</div><div class="deals">Партнёрская программа</div></div></div>
+    <div class="mini-stats">
+      <div class="mini">Активных партнёров<b>${act.length}</b></div><div class="mini">Реально работают<b class="gold">${work.length}</b></div>
+      <div class="mini">С продажами<b class="ok">${sell.length}</b></div><div class="mini">Обучены, 0 контактов<b class="${idle.length>20?'warn':''}">${idle.length}</b></div>
+      <div class="mini">Новых за месяц<b class="${nw.length===0?'warn':'ok'}">${nw.length}</b></div><div class="mini">Отказы<b>${ref.length}</b></div>
+    </div></div>`;
+}
+
+function renderRoles(){
+  const box=$('#roleBox');if(!box)return;
+  const ids=[...new Set([...Object.keys(users),...Object.keys(FB),...Object.keys(cfg.roles)])]
+    .filter(id=>!EX.has(String(id)))
+    .sort((a,b)=>nm(a).localeCompare(nm(b),'ru'));
+  if(!ids.length){box.innerHTML='<div class="hint">Появится после загрузки сотрудников.</div>';return}
+  box.innerHTML=ids.map(id=>{const r=roleOf(id);
+    return `<div class="mgr-row"><span>${esc(nm(id))} <span style="color:var(--muted)">#${id}</span></span>
+    <select data-role="${id}" style="min-width:150px">
+      ${['sales','first','off'].map(k=>`<option value="${k}"${k===r?' selected':''}>${ROLE_NAMES[k]}</option>`).join('')}
+    </select></div>`}).join('');
+}
+function renderShifts(){
+  const b=$('#shiftBox');if(!b)return;
+  const ids=[...idsOfRole('first')].sort((x,y)=>nm(x).localeCompare(nm(y),'ru'));
+  if(!ids.length){b.innerHTML='<div class="hint">Сначала отметьте людей как «Первая линия».</div>';return}
+  cfg.shifts=cfg.shifts||{};
+  b.innerHTML=ids.map(id=>`<div class="mgr-row"><span>${esc(nm(id))}</span><input type="number" data-shift="${id}" value="${cfg.shifts[id]||''}" placeholder="смен"></div>`).join('');
+}
+function renderPlans(box,ids,plans,ph2){
+  const b=$('#'+box);
+  if(!ids.length){b.innerHTML='<div class="hint">Появится после загрузки.</div>';return}
+  b.innerHTML=ids.map(id=>`<div class="mgr-row"><span>${esc(nm(id))}</span><input type="number" data-plan="${box}:${id}" value="${plans[id]||''}" placeholder="${ph2}"></div>`).join('');
+}
+function renderTicker(ws,wl,paid){
+  const it=[...ws.slice(0,3).map(d=>`${esc(nm(d.ASSIGNED_BY_ID))} — договор ${esc((d.TITLE||'').trim()||'#'+d.ID)} <b>${fmt(+d.OPPORTUNITY||0)}</b>`),
+    ...paid.filter(i=>(+i.opportunity||0)>=20000).slice(0,3).map(i=>`💰 ${esc(nm(i.assignedById))} — оплата <b>${fmt(+i.opportunity||0)}</b>`),
+    ...wl.slice(0,3).map(d=>`⚖️ ${esc(nm(d.ASSIGNED_BY_ID))} выиграл дело`)];
+  $('#tickerTrack').innerHTML=it.length?it.join('<span class="sep">◆</span>'):'Ждём первую победу месяца…';
+}
+function renderTotals(paid,debt,legal){
+  const cash=paid.reduce((s,i)=>s+(+i.opportunity||0),0);
+  const d=debt.reduce((s,i)=>s+(+i.opportunity||0),0);
+  const pt=Object.values(cfg.cashPlans).reduce((a,b)=>a+(+b||0),0);
+  $('#totalsRow').innerHTML=`
+    <div class="tot"><div class="lbl">Касса · <span id="periodLbl">${monthLabel()}</span></div><div class="val num green">${fmt(cash)}</div></div>
+    <div class="tot"><div class="lbl">План</div><div class="val num gold">${pt?Math.round(cash/pt*100)+'%':'—'}</div></div>
+    <div class="tot"><div class="lbl">Дебиторка</div><div class="val num red">${fmt(d)}</div></div>
+    <div class="tot"><div class="lbl">Расхождений</div><div class="val num blue">${diffs.length||'—'}</div></div>`;
+}
+
+/* ── Цикл ── */
+async function tick(){
+  if(ticking)return;ticking=true;
+  try{
+    const ms=monthStart(),me=monthEnd();setLive(true,'загрузка…');
+    const hd=$('#periodLbl');if(hd)hd.textContent=monthLabel();
+    const hh=$('#periodHead');if(hh)hh.textContent=monthLabel();
+    const allSales=await allDeals({filter:{CATEGORY_ID:CAT_SALES,'>=DATE_CREATE':ms,'<=DATE_CREATE':me},select:['ID','TITLE','OPPORTUNITY','ASSIGNED_BY_ID','CREATED_BY_ID','DATE_CREATE','CLOSEDATE','STAGE_ID','STAGE_SEMANTIC_ID','CATEGORY_ID','UF_CRM_CALL_SURVEY_RESULT','UF_CRM_CONSULT_FMT']});await sleep(350);
+    const wonSales=await allDeals({filter:{CATEGORY_ID:CAT_SALES,STAGE_SEMANTIC_ID:'S','>=CLOSEDATE':ms,'<=CLOSEDATE':me},select:['ID','TITLE','OPPORTUNITY','ASSIGNED_BY_ID','CLOSEDATE','CATEGORY_ID']});await sleep(350);
+    const lostSales=await allDeals({filter:{CATEGORY_ID:CAT_SALES,STAGE_SEMANTIC_ID:'F','>=CLOSEDATE':ms,'<=CLOSEDATE':me},select:['ID','ASSIGNED_BY_ID']});await sleep(350);
+    const back=new Date(new Date(ms).getTime()-75*86400000).toISOString().slice(0,19);
+    const paidRaw=await allItems({entityTypeId:INV,filter:{stageId:PAID,'>=movedTime':back},select:['id','title','opportunity','assignedById','parentId2','movedTime','ufCrmSmartInvoiceDatePay']});await sleep(350);
+    const paid=paidRaw.filter(i=>payDate(i)>=ms&&payDate(i)<=me);
+    const created=await allItems({entityTypeId:INV,filter:{'>=createdTime':ms,'<=createdTime':me},select:['id','opportunity','assignedById']});await sleep(350);
+    lastPaid=paid;
+    renderSales(wonSales,lostSales,paid,created);
+    const leads=await allLeads({filter:{'>=DATE_CREATE':ms,'<=DATE_CREATE':me},select:['ID','STATUS_ID','STATUS_SEMANTIC_ID','ASSIGNED_BY_ID','DATE_CREATE']});await sleep(350);
+    renderFirst(allSales,paid,leads);
+    renderOkk(allSales);
+    const debt=await allItems({entityTypeId:INV,filter:{stageId:DEBT},select:['id','title','opportunity','assignedById','parentId2','movedTime']});await sleep(350);
+    const wonB=await allDeals({filter:{CATEGORY_ID:CAT_BFL,STAGE_SEMANTIC_ID:'S','>=CLOSEDATE':ms,'<=CLOSEDATE':me},select:['ID','TITLE','ASSIGNED_BY_ID','CATEGORY_ID','OPPORTUNITY','CLOSEDATE','CONTACT_ID']});await sleep(350);
+    const actB=await allDeals({filter:{CATEGORY_ID:CAT_BFL,STAGE_SEMANTIC_ID:'P'},select:['ID','TITLE','ASSIGNED_BY_ID','MOVED_TIME','CATEGORY_ID','OPPORTUNITY']});await sleep(350);
+    const wonM=await allDeals({filter:{CATEGORY_ID:CAT_MIG,STAGE_SEMANTIC_ID:'S','>=CLOSEDATE':ms,'<=CLOSEDATE':me},select:['ID','TITLE','ASSIGNED_BY_ID','CATEGORY_ID','OPPORTUNITY','CLOSEDATE','CONTACT_ID']});await sleep(350);
+    const actM=await allDeals({filter:{CATEGORY_ID:CAT_MIG,STAGE_SEMANTIC_ID:'P'},select:['ID','TITLE','ASSIGNED_BY_ID','MOVED_TIME','CATEGORY_ID','OPPORTUNITY']});await sleep(350);
+    const cashByDeal={};paid.forEach(i=>{if(i.parentId2)cashByDeal[String(i.parentId2)]=(cashByDeal[String(i.parentId2)]||0)+(+i.opportunity||0)});
+    renderLegal(wonB,actB,wonM,actM,cashByDeal);
+    const dealMap={};[...allSales,...wonB,...actB,...wonM,...actM].forEach(d=>dealMap[String(d.ID)]=d);
+    renderCash(paid,debt,dealMap);
+    window.__junkHtml=renderJunk(paid,debt,dealMap);
+    const pd=await allDeals({filter:{CATEGORY_ID:CAT_PARTNER},select:['ID','TITLE','STAGE_ID','STAGE_SEMANTIC_ID','ASSIGNED_BY_ID','DATE_CREATE','CONTACT_ID']});
+    renderPartner(pd);await sleep(350);
+    /* телефония: с начала недели */
+    const nw=new Date(); const ws=new Date(nw.getFullYear(),nw.getMonth(),nw.getDate()-((nw.getDay()+6)%7));
+    let calls=[];
+    try{
+      let st=0;
+      for(let i=0;i<20;i++){
+        const j=await bx('voximplant.statistic.get',{FILTER:{'>=CALL_START_DATE':ws.toISOString().slice(0,19)},SORT:'CALL_START_DATE',ORDER:'DESC',start:st});
+        calls=calls.concat(j.result||[]);
+        if(j.next===undefined)break; st=j.next; await sleep(350);
+      }
+      renderLine(calls);
+    }catch(e){ $('#lineBody').innerHTML='<div class="empty">Телефония недоступна: '+esc(e.message)+'<br>Нужно право «Телефония» у вебхука.</div>'; }
+    /* после победы */
+    const pc=new Set(pd.map(d=>String(d.CONTACT_ID||'')).filter(Boolean));
+    const wonAll=[...wonB,...wonM].filter(d=>d.CLOSEDATE);
+    renderAfter(wonAll,calls,pc);
+    /* Сверка с Google-кассой убрана: касса сама заливает счета в Битрикс
+       каждые полчаса, а расхождения кладёт на лист «Проблемы» в таблице. */
+    renderTicker(wonSales,[...wonB,...wonM],paid);
+    renderTotals(paid,debt,actB.length+actM.length);
+    setLive(true);
+    const ids=new Set([...wonSales.map(d=>'s'+d.ID),...wonB.map(d=>'b'+d.ID),...wonM.map(d=>'m'+d.ID)]);
+    const pids=new Set(paid.map(i=>i.id));
+    if(knownWon!==null){
+      let dl=0;
+      wonSales.filter(d=>!knownWon.has('s'+d.ID)).slice(0,2).forEach(d=>{setTimeout(()=>celebrate('ПОБЕДА!','Новый договор',d.TITLE,+d.OPPORTUNITY||0,d.ASSIGNED_BY_ID),dl);dl+=8500});
+      paid.filter(i=>!knownPaid.has(i.id)&&(+i.opportunity||0)>=20000).slice(0,2).forEach(i=>{setTimeout(()=>celebrate('ДЕНЬГИ В КАССЕ!','Оплачен счёт',i.title,+i.opportunity||0,i.assignedById),dl);dl+=8500});
+    }
+    knownWon=ids;knownPaid=pids;
+  }catch(e){
+    setLive(false,e.message);
+    const g=$('#gridSales');
+    if(g&&g.querySelector('.empty'))g.innerHTML='<div class="empty" style="color:var(--red)">Не удалось загрузить: '+esc(e.message)+'</div>';
+  }finally{ticking=false}
+}
+
+/* ── Празднование ── */
+const goal=$('#goal');
+function celebrate(sh,kind,title,sum,mgr){
+  $('#gShout').textContent=sh;$('#gTitle').textContent=(title||'').trim()||kind;
+  $('#gSum').textContent=sum?fmt(sum):'';$('#gMgr').textContent=kind+' · '+nm(mgr);
+  const v=$('#goalVideo'), src=cfg.videos[mgr]||cfg.videos[VID_ALL]||cfg.videoAll||'';
+  if(src){ v.src=src; v.style.display='block'; v.currentTime=0; v.play().catch(()=>{}); }
+  else { v.style.display='none'; v.removeAttribute('src'); }
+  goal.classList.add('show');burst();flash();if(cfg.sound)snd();
+  setTimeout(()=>{goal.classList.remove('show'); v.pause();},9000);
+}
+function flash(){const f=$('#flash');f.style.transition='none';f.style.opacity='.7';requestAnimationFrame(()=>{f.style.transition='opacity 1s ease';f.style.opacity='0'})}
+const cv=$('#confetti'),ctx=cv.getContext('2d');
+function sz(){cv.width=innerWidth;cv.height=innerHeight}addEventListener('resize',sz);sz();
+let P=[],run=false;const CO=['#D0021B','#F5C518','#38D164','#39A8EF','#FFFFFF'];
+function burst(){
+  const cx=cv.width/2,cy=cv.height*.4;
+  for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,s=4+Math.random()*10;
+    P.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s-4,g:.28,w:6+Math.random()*7,h:9+Math.random()*9,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.3,c:CO[i%5],l:140})}
+  for(let i=0;i<90;i++)P.push({x:Math.random()*cv.width,y:-20-Math.random()*400,vx:(Math.random()-.5)*2,vy:2+Math.random()*3,g:.02,w:6+Math.random()*7,h:9+Math.random()*9,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.25,c:CO[i%5],l:420});
+  if(!run){run=true;requestAnimationFrame(dr)}
+}
+function dr(){ctx.clearRect(0,0,cv.width,cv.height);
+  P.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.r+=p.vr;p.l--;ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,p.l/40));ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore()});
+  P=P.filter(p=>p.l>0&&p.y<cv.height+40);if(P.length)requestAnimationFrame(dr);else run=false}
+let AC=null;
+function snd(){
+  AC||=new (window.AudioContext||window.webkitAudioContext)();const t0=AC.currentTime;
+  [392,523.25,659.25,783.99].forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain();
+    o.type='sawtooth';o.frequency.value=f;const st=t0+i*.11;
+    g.gain.setValueAtTime(0,st);g.gain.linearRampToValueAtTime(.22,st+.02);g.gain.exponentialRampToValueAtTime(.001,st+.35);
+    o.connect(g);g.connect(AC.destination);o.start(st);o.stop(st+.4)});
+  const h=AC.createOscillator(),hg=AC.createGain(),hf=AC.createBiquadFilter();
+  h.type='sawtooth';hf.type='lowpass';hf.frequency.value=1200;
+  h.frequency.setValueAtTime(220,t0);h.frequency.exponentialRampToValueAtTime(440,t0+.6);
+  hg.gain.setValueAtTime(0,t0);hg.gain.linearRampToValueAtTime(.18,t0+.08);hg.gain.linearRampToValueAtTime(0,t0+.9);
+  h.connect(hf);hf.connect(hg);hg.connect(AC.destination);h.start(t0);h.stop(t0+1);
+  const sr=AC.sampleRate,bf=AC.createBuffer(1,sr*4.5,sr),ch=bf.getChannelData(0);
+  for(let i=0;i<ch.length;i++){const t=i/sr;ch[i]=(Math.random()*2-1)*.28*Math.min(t/.5,1)*Math.exp(-Math.max(0,t-3.2)*2.2)}
+  for(let c=0;c<200;c++){const s0=Math.floor(Math.random()*4*sr),ln=Math.floor(sr*.025);
+    for(let i=0;i<ln&&s0+i<ch.length;i++)ch[s0+i]+=(Math.random()*2-1)*.45*Math.exp(-i/(ln*.25))}
+  const s=AC.createBufferSource();s.buffer=bf;
+  const f2=AC.createBiquadFilter();f2.type='bandpass';f2.frequency.value=1700;f2.Q.value=.7;
+  const g2=AC.createGain();g2.gain.value=.85;s.connect(f2);f2.connect(g2);g2.connect(AC.destination);s.start(t0+.15);
+}
+
+function setLive(ok,m){$('#liveDot').classList.toggle('err',!ok);$('#liveTxt').textContent=ok?(m||'в эфире'):('ошибка: '+(m||'нет связи')).slice(0,38)}
+document.querySelectorAll('.tab-btn').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel-tab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');$('#tab'+b.dataset.tab).classList.add('active');
+  $('#mainEl').classList.toggle('noscroll',b.dataset.tab==='Legal');
+});
+const setup=$('#setup');
+$('#btnGear').onclick=()=>{
+  if(!canSetup){alert('Настройки табло доступны Валентину, Корнелу, Светлане и Дилнозе.');return}
+  setTimeout(renderVideoRows,0);
+  goal.classList.remove('show');$('#goalVideo').pause();
+  $('#fHook').value=cfg.hook;$('#fMonth').value=curMonth();renderRoles();renderShifts();
+  $('#fPoll').value=cfg.poll;$('#fMaxLoad').value=cfg.maxLoad;
+  $('#fLawCons').value=cfg.lawConsult||500;
+  $('#fMgrProfit').value=cfg.mgrProfit||'';
+  $('#fMgrAdv').value=cfg.mgrAdvance||'';
+  $('#btnSound').textContent='Звук: '+(cfg.sound?'вкл':'выкл');setup.classList.add('show')};
+$('#btnCloseSetup').onclick=()=>setup.classList.remove('show');
+$('#btnSound').onclick=()=>{cfg.sound=!cfg.sound;$('#btnSound').textContent='Звук: '+(cfg.sound?'вкл':'выкл')};
+$('#btnTest').onclick=()=>{
+  const ids=[...new Set([...Object.keys(users),...Object.keys(cfg.videos)])];
+  const withVid=ids.filter(id=>cfg.videos[id]);
+  const who=withVid.length?withVid[Math.floor(Math.random()*withVid.length)]:(ids[0]||'6367');
+  celebrate('ПОБЕДА!','Тест — видео '+(cfg.videos[who]?'персональное':(cfg.videos[VID_ALL]||cfg.videoAll)?'для остальных':'без видео'),'Тестовая победа',150000,who);
+};
+$('#btnFull').onclick=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+$('#btnSave').onclick=async()=>{
+  cfg.hook=$('#fHook').value.trim();
+  cfg.month=$('#fMonth').value.trim();
+  document.querySelectorAll('[data-role]').forEach(sel=>{cfg.roles[sel.dataset.role]=sel.value});
+  cfg.shifts=cfg.shifts||{};
+  document.querySelectorAll('[data-shift]').forEach(i=>{if(i.value)cfg.shifts[i.dataset.shift]=+i.value;else delete cfg.shifts[i.dataset.shift]});
+  cfg.poll=Math.max(10,+$('#fPoll').value||25);cfg.maxLoad=+$('#fMaxLoad').value||60;
+  cfg.lawConsult=+$('#fLawCons').value||500;
+  cfg.mgrProfit=+$('#fMgrProfit').value||0;
+  cfg.mgrAdvance=+$('#fMgrAdv').value||0;
+  /* видео уже собраны построчным редактором */
+  cfg.videoAll=(cfg.videos||{})[VID_ALL]||'';
+  document.querySelectorAll('[data-okk]').forEach(i=>{const [kind,id]=i.dataset.okk.split(':');
+    cfg.okk[id]=cfg.okk[id]||{}; if(i.value)cfg.okk[id][kind]=+i.value; else delete cfg.okk[id][kind];});
+  document.querySelectorAll('[data-plan]').forEach(i=>{const [b,id]=i.dataset.plan.split(':');
+    const t=b==='cashPlans'?cfg.cashPlans:cfg.legalPlans;if(i.value)t[id]=+i.value;else delete t[id]});
+  localStorage.setItem(LS,JSON.stringify(cfg));
+  const m=$('#setupMsg');m.className='status-msg';
+  if(!cfg.hook){m.textContent='Вставьте вебхук.';m.classList.add('err');return}
+  m.textContent='Проверяю связь…';
+  try{await bx('crm.deal.list',{filter:{CATEGORY_ID:CAT_SALES},select:['ID'],start:0});
+    m.textContent='Связь есть! Запускаю.';m.classList.add('ok');
+    await loadUsers();knownWon=null;knownPaid=null;
+    if(timer)clearInterval(timer);await tick();timer=setInterval(tick,cfg.poll*1000);
+    setTimeout(()=>setup.classList.remove('show'),700);
+  }catch(e){m.textContent='Не получилось: '+e.message;m.classList.add('err')}
+};
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){setup.classList.remove('show');goal.classList.remove('show');$('#goalVideo').pause();}
+  if(e.key==='s'&&e.ctrlKey){e.preventDefault();if(canSetup)$('#btnGear').click();}
+});
+/* Внутри Битрикса вебхук не нужен: токен даёт сам портал */
+if(cfg.embedded){const fh=$('#fHook');if(fh&&fh.closest('div'))fh.closest('div').style.display='none'}
+renderPeriodSwitch();
+$('#periodHead').textContent=periodLabel();
+if(cfg.hook){
+  setup.classList.remove('show');
+  checkAccess().then(loadUsers).then(()=>{tick();timer=setInterval(tick,cfg.poll*1000)});
+}
+})();
+</script>
+</body>
+</html>
