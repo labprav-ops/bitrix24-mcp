@@ -4,6 +4,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { createRequire } from "module";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
@@ -476,7 +477,33 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TABLO_DIR = path.join(__dirname, "public");
 
 app.use("/tablo", express.urlencoded({ extended: true }));
-app.all("/tablo", (req, res) => res.sendFile(path.join(TABLO_DIR, "index.html")));
+
+/**
+ * Битрикс открывает локальное приложение POST-запросом и кладёт токен
+ * в тело, а не в адрес. Отдать файл как есть нельзя — тело потеряется,
+ * страница откроется пустой и попросит вебхук. Поэтому подставляем
+ * токен прямо в разметку перед отправкой.
+ */
+app.all("/tablo", (req, res) => {
+  const file = path.join(TABLO_DIR, "index.html");
+  fs.readFile(file, "utf8", (err, html) => {
+    if (err) return res.status(500).send("Табло не найдено на сервере");
+
+    const b = req.body || {};
+    const q = req.query || {};
+    const auth = b.AUTH_ID || q.AUTH_ID || q.auth || "";
+    const domain = b.DOMAIN || q.DOMAIN || "";
+
+    if (auth && domain) {
+      const inject =
+        `<script>window.__BX=${JSON.stringify({ auth, domain })};</script>`;
+      html = html.replace("</head>", inject + "</head>");
+    }
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  });
+});
+
 app.use("/tablo", express.static(TABLO_DIR));
 
 /**
