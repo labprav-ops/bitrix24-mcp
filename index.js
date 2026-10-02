@@ -595,6 +595,16 @@ app.post("/mcp", async (req, res) => {
 });
 
 /**
+ * Личные ключи с полными правами (Корнел, Дилноза): POST /mcp-lead?key=...
+ * Ключи — в переменной LEAD_KEYS, журнал — leads.cjs.
+ */
+require("./leads.cjs").mount(app, {
+  getSecret,
+  handleMcpRequest,
+  adminBitrixCall,
+});
+
+/**
  * ==================================================
  * CLAUDE СОТРУДНИКОВ
  * ==================================================
