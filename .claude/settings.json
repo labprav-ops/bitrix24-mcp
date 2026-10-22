@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch",
+      "WebSearch",
+      "mcp__Bitrix24__praktika",
+      "mcp__Bitrix24__praktika_vsya",
+      "mcp__Bitrix24__praktika_akt",
+      "mcp__Bitrix24__case_summary",
+      "mcp__Bitrix24__control_report",
+      "mcp__Bitrix24__docs_find",
+      "mcp__Bitrix24__docs_list",
+      "mcp__Bitrix24__docs_read",
+      "mcp__Bitrix24__fields_short",
+      "mcp__Bitrix24__find_client",
+      "mcp__Bitrix24__get_deal",
+      "mcp__Bitrix24__list_contacts",
+      "mcp__Bitrix24__list_deals",
+      "mcp__Bitrix24__list_leads",
+      "mcp__Bitrix24__list_tasks",
+      "mcp__Bitrix24__schedule_get",
+      "mcp__Bitrix24__schedule_gaps",
+      "mcp__Content__polz_find",
+      "mcp__Content__polz_get",
+      "mcp__Content__polz_health",
+      "mcp__Content__get_card",
+      "mcp__Content__list_cards",
+      "mcp__Content__check_card",
+      "mcp__Content__stats",
+      "mcp__Content__style_guide",
+      "mcp__Content__stories_get",
+      "mcp__Content__stories_list",
+      "mcp__Google_Drive__search_files",
+      "mcp__Google_Drive__read_file_content",
+      "mcp__Google_Drive__download_file_content",
+      "mcp__Google_Drive__get_file_metadata",
+      "mcp__Google_Drive__list_recent_files",
+      "mcp__Gmail__search_threads",
+      "mcp__Gmail__get_thread",
+      "mcp__Gmail__get_message"
+    ]
+  }
+}
