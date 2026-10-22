@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Bitrix24__praktika",
+      "mcp__Bitrix24__praktika_vsya",
+      "mcp__Bitrix24__praktika_akt",
+      "mcp__Content__polz_find",
+      "mcp__Content__polz_get"
+    ]
+  }
+}
